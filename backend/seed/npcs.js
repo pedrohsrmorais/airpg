@@ -495,7 +495,7 @@ async function main() {
       }
       for (let i = 0; i < count; i++) {
         const loc = pick(locs);
-        allNPCs.push(generateNPC(region_id, loc.id, loc.pos_x, loc.pos_y));
+        allNPCs.push(generateNPC(region_id, loc.id, parseFloat(loc.pos_x), parseFloat(loc.pos_y)));
       }
     }
 
