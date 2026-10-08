@@ -1,0 +1,25 @@
+-- ─────────────────────────────────────────────────────────────────────────────
+-- AIRPG — Migração: necessidades vitais dos NPCs
+--
+-- Adiciona hp, max_hp, hunger (fome) e thirst (sede) na tabela npcs.
+-- Execute UMA VEZ no banco existente.
+-- Se você for rodar reset.mysql (do zero), ignore este arquivo —
+-- o reset.mysql já será atualizado com essas colunas.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+ALTER TABLE npcs
+  ADD COLUMN IF NOT EXISTS hp       SMALLINT UNSIGNED NOT NULL DEFAULT 100 AFTER reputation,
+  ADD COLUMN IF NOT EXISTS max_hp   SMALLINT UNSIGNED NOT NULL DEFAULT 100 AFTER hp,
+  ADD COLUMN IF NOT EXISTS hunger   TINYINT UNSIGNED  NOT NULL DEFAULT 75  AFTER max_hp,
+  ADD COLUMN IF NOT EXISTS thirst   TINYINT UNSIGNED  NOT NULL DEFAULT 75  AFTER hunger;
+
+-- Define valores iniciais razoáveis para NPCs já existentes
+UPDATE npcs SET
+  hp     = 100,
+  max_hp = 100,
+  hunger = 75 + FLOOR(RAND() * 25),   -- entre 75 e 100 (bem alimentados no início)
+  thirst = 70 + FLOOR(RAND() * 30)    -- entre 70 e 100
+WHERE hp = 100 AND hunger = 75;       -- só quem ainda tem o default
+
+SELECT CONCAT('✅ Migração concluída. NPCs atualizados: ', COUNT(*)) AS resultado
+  FROM npcs WHERE hp IS NOT NULL;

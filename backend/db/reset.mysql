@@ -296,6 +296,12 @@ CREATE TABLE npcs (
   gold         INT UNSIGNED NOT NULL DEFAULT 10,
   reputation   TINYINT UNSIGNED NOT NULL DEFAULT 50,
 
+  -- Necessidades vitais
+  hp           SMALLINT UNSIGNED NOT NULL DEFAULT 100,
+  max_hp       SMALLINT UNSIGNED NOT NULL DEFAULT 100,
+  hunger       TINYINT UNSIGNED  NOT NULL DEFAULT 75,   -- 0=faminto, 100=satisfeito
+  thirst       TINYINT UNSIGNED  NOT NULL DEFAULT 75,   -- 0=desidratado, 100=hidratado
+
   -- Social
   religion     VARCHAR(60),
   faction      VARCHAR(60) NOT NULL DEFAULT 'none',

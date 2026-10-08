@@ -3,13 +3,13 @@
 /**
  * AIRPG — Gerador de NPCs
  *
- * Gera ~500 NPCs distribuídos pela ilha:
- *   - Porto de Vael (região 1):        ~350 NPCs
- *   - Aldeia dos Caçadores (região 2):  ~50 NPCs
- *   - Aldeia de Aure (região 3):        ~60 NPCs
- *   - Aldeia Costeira de Marev (região 4): ~55 NPCs
- *   - Vila de Drak (região 5):          ~45 NPCs
- *   - Ruínas de Keth (região 6):        ~10 NPCs (exploradores/cultistas)
+ * Gera ~570 NPCs distribuídos pela ilha de Eldoria:
+ *   Região 1 — Porto de Vael        (~350 NPCs, cidade portuária)
+ *   Região 2 — Bosque Brumoso       (~50 NPCs,  caçadores e foragidos)
+ *   Região 3 — Planícies de Aure    (~60 NPCs,  agricultores)
+ *   Região 4 — Aldeia de Marev      (~55 NPCs,  pescadores costeiros)
+ *   Região 5 — Vila de Drak         (~45 NPCs,  mineradores)
+ *   Região 6 — Ruínas de Keth       (~10 NPCs,  exploradores/cultistas)
  *
  * Uso: node seed/npcs.js
  * Atenção: requer que seed/map.js já tenha rodado.
@@ -25,442 +25,572 @@ const DB_CONFIG = {
   database: process.env.DB_NAME     || 'airpg',
 };
 
-const WORLD_ID = 1;
+const MUNDO_ID = 1;
 
-/* ── Tabelas de dados ─────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════════════
+   TABELAS DE DADOS
+══════════════════════════════════════════════════════════════════════════════ */
 
-const FIRST_NAMES_M = [
+const NOMES_MASCULINOS = [
   'Aldric','Brennan','Caelan','Doran','Elric','Fendrel','Gareth','Hadwin',
   'Idris','Jareth','Kellen','Loric','Maren','Navan','Orin','Petyr','Quinn',
   'Raelin','Soren','Torin','Ulric','Valen','Wren','Xander','Yoris','Zane',
   'Borin','Caius','Daven','Elan','Faren','Garen','Havin','Ivar','Jorin',
   'Kavar','Lander','Marlo','Norvin','Orlan','Pryor','Ravin','Salin','Tavor',
+  'Aldmar','Brenk','Cador','Deth','Erlan','Falco','Gorvan','Helsin',
 ];
 
-const FIRST_NAMES_F = [
+const NOMES_FEMININOS = [
   'Aelith','Bryn','Calla','Daria','Elara','Fiera','Gwen','Hessa','Iona',
   'Jael','Kira','Lyra','Mira','Nara','Orla','Petra','Quelle','Rena',
   'Sable','Tessa','Ursa','Vira','Willa','Xena','Yara','Zora','Annis',
   'Beryl','Cira','Deva','Erin','Falla','Gisel','Hala','Ilara','Janeth',
   'Kalin','Lessa','Morin','Nessa','Opal','Priya','Raina','Selene','Tavia',
+  'Aldine','Brenna','Celia','Dalla','Eska','Freya','Gunna','Helka',
 ];
 
-const LAST_NAMES = [
-  'Ashford','Blackwood','Coldwater','Dunmore','Elderborn','Frostmark',
-  'Greymoor','Harwick','Ironside','Jadewine','Kellmark','Linborne',
-  'Morrow','Nettlewick','Orestone','Pendwick','Queensbury','Ravenmore',
-  'Stonegate','Thistledown','Underholm','Varwick','Wellbrook','Xander',
-  'Yarwick','Zorwell','Ashton','Blackthorn','Crossley','Dawnwood',
-  'Everett','Fairbrook','Goldsworth','Highmark','Ironshard','Jadewick',
-  'Kessler','Longbow','Markwood','Northgate','Oakwood','Pinecrest',
+const SOBRENOMES = [
+  'Ashford','Boscopal','Caldeirão','Dunmore','Elderborn','Geada',
+  'Morropedr','Harwick','Ferroado','Vineiva','Kellmark','Linborne',
+  'Morrow','Nettlewick','Pedreira','Pendwick','Ravemar','Ravenmore',
+  'Portão','Cardo','Underholm','Varwick','Poço','Xander',
+  'Yarwick','Zorwell','Cinza','Espinho','Crossley','Dawnwood',
+  'Everett','Fairbrook','Goldsworth','Northgate','Oakwood','Pinecrest',
+  'Salteiro','Fontemar','Morroalto','Pedreiro','Vallbrook','Ironshard',
 ];
 
-const DEITIES = ['Ereth','Tharkon','Mira','Soleth','Draevon','Kezan','Lune','Vorath'];
+const DIVINDADES = [
+  'Ereth',  // deusa da ordem e comércio
+  'Tharkon',// deus da guerra e honra
+  'Mira',   // deusa da cura e natureza
+  'Soleth', // deus do sol e colheita
+  'Draevon',// deus do mar e viagens
+  'Kezan',  // deus das sombras e segredos
+  'Lune',   // deusa da lua e magia
+  'Vorath', // deus do fogo e forja
+];
 
-const FACTIONS = ['none','merchants_guild','temple_of_ereth','city_guard','miners_union','fishermens_guild','shadow_hand','free_settlers'];
+const FACÇÕES = [
+  'nenhuma',
+  'guilda_mercadores',
+  'templo_de_ereth',
+  'guarda_cidade',
+  'uniao_mineiros',
+  'guilda_pescadores',
+  'mao_sombria',
+  'colonos_livres',
+];
 
-const PROFESSIONS = {
-  1: [ // Porto de Vael
-    { role: 'merchant',       weight: 12 },
-    { role: 'guard',          weight: 10 },
-    { role: 'innkeeper',      weight: 5 },
-    { role: 'blacksmith',     weight: 4 },
-    { role: 'sailor',         weight: 8 },
-    { role: 'fisherman',      weight: 7 },
-    { role: 'priest',         weight: 4 },
-    { role: 'thief',          weight: 3 },
-    { role: 'nobleman',       weight: 3 },
-    { role: 'craftsman',      weight: 8 },
-    { role: 'farmer',         weight: 4 },
-    { role: 'beggar',         weight: 3 },
-    { role: 'bard',           weight: 3 },
-    { role: 'scribe',         weight: 3 },
-    { role: 'healer',         weight: 3 },
-    { role: 'dock_worker',    weight: 8 },
-    { role: 'servant',        weight: 6 },
-    { role: 'child',          weight: 8 },
-    { role: 'elder',          weight: 4 },
-    { role: 'adventurer',     weight: 2 },
+/* ══════════════════════════════════════════════════════════════════════════════
+   PROFISSÕES POR REGIÃO
+   Cada profissão tem: role, weight (probabilidade relativa), e o recurso
+   que produz no simulador (produz_recurso) com quantidades min/max por ciclo
+   e o intervalo de ticks entre produções.
+══════════════════════════════════════════════════════════════════════════════ */
+
+const PROFISSOES = {
+  1: [ // Porto de Vael — cidade portuária
+    { role: 'mercador',        weight: 12 },
+    { role: 'guarda',          weight: 10 },
+    { role: 'estalajadeiro',   weight: 5  },
+    { role: 'ferreiro',        weight: 4  },
+    { role: 'marinheiro',      weight: 8  },
+    { role: 'pescador',        weight: 7  },
+    { role: 'sacerdote',       weight: 4  },
+    { role: 'ladrao',          weight: 3  },
+    { role: 'nobre',           weight: 3  },
+    { role: 'artesao',         weight: 8  },
+    { role: 'lavrador',        weight: 4  },
+    { role: 'mendigo',         weight: 3  },
+    { role: 'bardo',           weight: 3  },
+    { role: 'escriba',         weight: 3  },
+    { role: 'curandeiro',      weight: 3  },
+    { role: 'estivador',       weight: 8  },
+    { role: 'servo',           weight: 6  },
+    { role: 'crianca',         weight: 8  },
+    { role: 'anciao',          weight: 4  },
+    { role: 'aventureiro',     weight: 2  },
   ],
-  2: [ // Bosque Brumoso
-    { role: 'hunter',         weight: 30 },
-    { role: 'herbalist',      weight: 15 },
-    { role: 'woodcutter',     weight: 20 },
-    { role: 'trapper',        weight: 15 },
-    { role: 'elder',          weight: 5 },
-    { role: 'child',          weight: 10 },
-    { role: 'outlaw',         weight: 5 },
+  2: [ // Bosque Brumoso — caçadores
+    { role: 'cacador',         weight: 30 },
+    { role: 'herborista',      weight: 15 },
+    { role: 'lenhador',        weight: 20 },
+    { role: 'armadilheiro',    weight: 15 },
+    { role: 'anciao',          weight: 5  },
+    { role: 'crianca',         weight: 10 },
+    { role: 'fora_da_lei',     weight: 5  },
   ],
-  3: [ // Planícies de Aure
-    { role: 'farmer',         weight: 40 },
-    { role: 'miller',         weight: 10 },
-    { role: 'shepherd',       weight: 15 },
-    { role: 'merchant',       weight: 5 },
-    { role: 'priest',         weight: 5 },
-    { role: 'child',          weight: 15 },
-    { role: 'elder',          weight: 5 },
-    { role: 'guard',          weight: 5 },
+  3: [ // Planícies de Aure — agricultores
+    { role: 'lavrador',        weight: 40 },
+    { role: 'moleiro',         weight: 10 },
+    { role: 'pastor',          weight: 15 },
+    { role: 'mercador',        weight: 5  },
+    { role: 'sacerdote',       weight: 5  },
+    { role: 'crianca',         weight: 15 },
+    { role: 'anciao',          weight: 5  },
+    { role: 'guarda',          weight: 5  },
   ],
-  4: [ // Aldeia Costeira de Marev
-    { role: 'fisherman',      weight: 40 },
-    { role: 'sailor',         weight: 20 },
-    { role: 'net_maker',      weight: 10 },
-    { role: 'innkeeper',      weight: 5 },
-    { role: 'smuggler',       weight: 5 },
-    { role: 'child',          weight: 10 },
-    { role: 'elder',          weight: 5 },
-    { role: 'lighthouse_keeper', weight: 5 },
+  4: [ // Aldeia Costeira de Marev — pesca
+    { role: 'pescador',        weight: 40 },
+    { role: 'marinheiro',      weight: 20 },
+    { role: 'fabricante_redes',weight: 10 },
+    { role: 'estalajadeiro',   weight: 5  },
+    { role: 'contrabandista',  weight: 5  },
+    { role: 'crianca',         weight: 10 },
+    { role: 'anciao',          weight: 5  },
+    { role: 'guarda_farol',    weight: 5  },
   ],
-  5: [ // Vila dos Montes de Drak
-    { role: 'miner',          weight: 40 },
-    { role: 'blacksmith',     weight: 15 },
-    { role: 'guard',          weight: 10 },
-    { role: 'merchant',       weight: 8 },
-    { role: 'innkeeper',      weight: 5 },
-    { role: 'child',          weight: 10 },
-    { role: 'elder',          weight: 5 },
-    { role: 'outlaw',         weight: 7 },
+  5: [ // Vila dos Montes de Drak — mineradores
+    { role: 'minerador',       weight: 40 },
+    { role: 'ferreiro',        weight: 15 },
+    { role: 'guarda',          weight: 10 },
+    { role: 'mercador',        weight: 8  },
+    { role: 'estalajadeiro',   weight: 5  },
+    { role: 'crianca',         weight: 10 },
+    { role: 'anciao',          weight: 5  },
+    { role: 'fora_da_lei',     weight: 7  },
   ],
-  6: [ // Ruínas de Keth
-    { role: 'adventurer',     weight: 30 },
-    { role: 'scholar',        weight: 25 },
-    { role: 'cultist',        weight: 25 },
-    { role: 'outlaw',         weight: 20 },
+  6: [ // Ruínas de Keth — exploradores
+    { role: 'aventureiro',     weight: 30 },
+    { role: 'estudioso',       weight: 25 },
+    { role: 'cultista',        weight: 25 },
+    { role: 'fora_da_lei',     weight: 20 },
   ],
 };
 
-const INNATE_TRAITS = [
-  'brave','cowardly','honest','deceitful','generous','greedy','kind','cruel',
-  'curious','incurious','patient','impatient','loyal','treacherous','proud',
-  'humble','ambitious','content','cautious','reckless','cheerful','gloomy',
-  'suspicious','trusting','stubborn','flexible','passionate','reserved',
-  'protective','selfish',
-];
+/* ══════════════════════════════════════════════════════════════════════════════
+   PRODUÇÃO DE RECURSOS POR PROFISSÃO
+   ticks_intervalo: a cada quantos ticks o NPC gera o recurso
+   qtd_min / qtd_max: quantidade gerada por ciclo
+   recurso: chave do item no inventário
+══════════════════════════════════════════════════════════════════════════════ */
 
-const SKILLS_BY_ROLE = {
-  merchant:        ['bargaining','appraisal','persuasion','accounting'],
-  guard:           ['swordsmanship','alertness','intimidation','patrol'],
-  innkeeper:       ['cooking','hospitality','gossip','accounting'],
-  blacksmith:      ['metalworking','swordsmanship','appraisal','endurance'],
-  sailor:          ['navigation','swimming','rope_work','weather_reading'],
-  fisherman:       ['fishing','swimming','weather_reading','net_casting'],
-  priest:          ['theology','healing','persuasion','ritual'],
-  thief:           ['stealth','lockpicking','sleight_of_hand','deception'],
-  nobleman:        ['etiquette','politics','riding','accounting'],
-  craftsman:       ['crafting','appraisal','bargaining','endurance'],
-  farmer:          ['agriculture','animal_handling','endurance','weather_reading'],
-  beggar:          ['begging','stealth','gossip','survival'],
-  bard:            ['performance','persuasion','gossip','history'],
-  scribe:          ['writing','reading','history','languages'],
-  healer:          ['medicine','herbalism','diagnosis','empathy'],
-  dock_worker:     ['endurance','rope_work','swimming','loading'],
-  servant:         ['cooking','cleaning','discretion','etiquette'],
-  hunter:          ['tracking','archery','stealth','skinning'],
-  herbalist:       ['herbalism','medicine','foraging','botany'],
-  woodcutter:      ['axe_skill','endurance','navigation','survival'],
-  trapper:         ['trapping','tracking','stealth','survival'],
-  miner:           ['mining','endurance','geology','explosives'],
-  miller:          ['milling','agriculture','machinery','accounting'],
-  shepherd:        ['animal_handling','weather_reading','endurance','navigation'],
-  net_maker:       ['crafting','fishing','rope_work','trade'],
-  smuggler:        ['stealth','navigation','deception','bribing'],
-  lighthouse_keeper: ['navigation','signaling','rope_work','endurance'],
-  outlaw:          ['combat','stealth','survival','intimidation'],
-  adventurer:      ['combat','survival','exploration','first_aid'],
-  scholar:         ['research','history','magic_theory','languages'],
-  cultist:         ['ritual','stealth','deception','dark_magic'],
-  elder:           ['wisdom','history','gossip','medicine'],
-  child:           [],
-  trapper:         ['trapping','tracking','survival','knife_skills'],
+const PRODUCAO_POR_PROFISSAO = {
+  // ── Produtores de comida ──────────────────────────────────────────
+  cacador:         { recurso: 'carne_caca',     ticks_intervalo: 2,  qtd_min: 1, qtd_max: 4  },
+  armadilheiro:    { recurso: 'carne_caca',     ticks_intervalo: 3,  qtd_min: 1, qtd_max: 3  },
+  pescador:        { recurso: 'peixe_fresco',   ticks_intervalo: 2,  qtd_min: 2, qtd_max: 6  },
+  lavrador:        { recurso: 'cereal',         ticks_intervalo: 10, qtd_min: 5, qtd_max: 15 },
+  pastor:          { recurso: 'carne_ovelha',   ticks_intervalo: 8,  qtd_min: 1, qtd_max: 3  },
+  moleiro:         { recurso: 'farinha',        ticks_intervalo: 6,  qtd_min: 3, qtd_max: 8  },
+  herborista:      { recurso: 'erva_medicinal', ticks_intervalo: 4,  qtd_min: 2, qtd_max: 5  },
+  // ── Produtores de materiais ───────────────────────────────────────
+  minerador:       { recurso: 'minerio_ferro',  ticks_intervalo: 3,  qtd_min: 2, qtd_max: 5  },
+  lenhador:        { recurso: 'madeira',        ticks_intervalo: 3,  qtd_min: 3, qtd_max: 7  },
+  ferreiro:        { recurso: 'ferro_trabalhado',ticks_intervalo: 4, qtd_min: 1, qtd_max: 3  },
+  fabricante_redes:{ recurso: 'rede_pesca',     ticks_intervalo: 8,  qtd_min: 1, qtd_max: 2  },
+  // ── Fonte de água ─────────────────────────────────────────────────
+  // Água vem de fontes públicas — gerenciado pelo mapa, não por profissão
 };
 
-/* ── Utilidades ──────────────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════════════
+   TRAÇOS DE PERSONALIDADE INATOS
+══════════════════════════════════════════════════════════════════════════════ */
+
+const TRACOS_INATOS = [
+  'corajoso','covarde','honesto','desonesto','generoso','ganancioso',
+  'gentil','cruel','curioso','desinteressado','paciente','impaciente',
+  'leal','traicoeiro','orgulhoso','humilde','ambicioso','satisfeito',
+  'cauteloso','imprudente','alegre','melancolico','desconfiado','confiante',
+  'teimoso','flexivel','apaixonado','reservado','protetor','egoista',
+];
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   HABILIDADES POR PROFISSÃO
+══════════════════════════════════════════════════════════════════════════════ */
+
+const HABILIDADES_POR_PROFISSAO = {
+  mercador:         ['negociacao','avaliacao','persuasao','contabilidade'],
+  guarda:           ['esgrima','vigilancia','intimidacao','patrulha'],
+  estalajadeiro:    ['culinaria','hospitalidade','fofoca','contabilidade'],
+  ferreiro:         ['metalurgia','esgrima','avaliacao','resistencia'],
+  marinheiro:       ['navegacao','natacao','trabalho_cordas','leitura_tempo'],
+  pescador:         ['pesca','natacao','leitura_tempo','lancamento_redes'],
+  sacerdote:        ['teologia','cura','persuasao','ritual'],
+  ladrao:           ['furtividade','arrombar','prestidigitacao','enganacao'],
+  nobre:            ['etiqueta','politica','equitacao','contabilidade'],
+  artesao:          ['artesanato','avaliacao','negociacao','resistencia'],
+  lavrador:         ['agricultura','trato_animais','resistencia','leitura_tempo'],
+  mendigo:          ['mendicancia','furtividade','fofoca','sobrevivencia'],
+  bardo:            ['performance','persuasao','fofoca','historia'],
+  escriba:          ['escrita','leitura','historia','idiomas'],
+  curandeiro:       ['medicina','herbologia','diagnostico','empatia'],
+  estivador:        ['resistencia','trabalho_cordas','natacao','carga'],
+  servo:            ['culinaria','limpeza','discrição','etiqueta'],
+  cacador:          ['rastreamento','arco','furtividade','esfola'],
+  herborista:       ['herbologia','medicina','coleta','botanica'],
+  lenhador:         ['machado','resistencia','navegacao','sobrevivencia'],
+  armadilheiro:     ['armadilhas','rastreamento','furtividade','sobrevivencia'],
+  minerador:        ['mineracao','resistencia','geologia','explosivos'],
+  moleiro:          ['moagem','agricultura','maquinaria','contabilidade'],
+  pastor:           ['trato_animais','leitura_tempo','resistencia','navegacao'],
+  fabricante_redes: ['artesanato','pesca','trabalho_cordas','comercio'],
+  contrabandista:   ['furtividade','navegacao','enganacao','suborno'],
+  guarda_farol:     ['navegacao','sinalizacao','trabalho_cordas','resistencia'],
+  fora_da_lei:      ['combate','furtividade','sobrevivencia','intimidacao'],
+  aventureiro:      ['combate','sobrevivencia','exploracao','primeiros_socorros'],
+  estudioso:        ['pesquisa','historia','teoria_magica','idiomas'],
+  cultista:         ['ritual','furtividade','enganacao','magia_sombria'],
+  anciao:           ['sabedoria','historia','fofoca','medicina'],
+  crianca:          [],
+};
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   INVENTÁRIO INICIAL POR PROFISSÃO
+══════════════════════════════════════════════════════════════════════════════ */
+
+const INVENTARIO_INICIAL = {
+  ferreiro:         [{ item: 'martelo', qtd: 1 }, { item: 'lingote_ferro', qtd: rand(3,8) }],
+  guarda:           [{ item: 'espada_curta', qtd: 1 }, { item: 'armadura_couro', qtd: 1 }],
+  mercador:         [{ item: 'balanca_comerciante', qtd: 1 }, { item: 'livro_contas', qtd: 1 }],
+  lavrador:         [{ item: 'forcado', qtd: 1 }, { item: 'sementes', qtd: rand(5,15) }, { item: 'cereal', qtd: rand(2,6) }],
+  pescador:         [{ item: 'vara_pesca', qtd: 1 }, { item: 'rede', qtd: rand(1,3) }, { item: 'peixe_fresco', qtd: rand(1,4) }],
+  cacador:          [{ item: 'arco_caca', qtd: 1 }, { item: 'flechas', qtd: rand(10,30) }, { item: 'carne_caca', qtd: rand(1,3) }],
+  curandeiro:       [{ item: 'erva_medicinal', qtd: rand(5,15) }, { item: 'atadura', qtd: rand(3,8) }],
+  minerador:        [{ item: 'picareta', qtd: 1 }, { item: 'lanterna', qtd: 1 }, { item: 'minerio_ferro', qtd: rand(1,3) }],
+  sacerdote:        [{ item: 'simbolo_sagrado', qtd: 1 }, { item: 'livro_oracoes', qtd: 1 }],
+  marinheiro:       [{ item: 'corda', qtd: rand(2,5) }, { item: 'faca_marinheiro', qtd: 1 }],
+  bardo:            [{ item: 'alaude', qtd: 1 }],
+  estudioso:        [{ item: 'pergaminho', qtd: rand(2,6) }, { item: 'tinta_e_pena', qtd: 1 }],
+  ladrao:           [{ item: 'gazuas', qtd: rand(2,5) }, { item: 'adaga', qtd: 1 }],
+  herborista:       [{ item: 'erva_medicinal', qtd: rand(3,8) }, { item: 'cesta_coleta', qtd: 1 }],
+  lenhador:         [{ item: 'machado', qtd: 1 }, { item: 'madeira', qtd: rand(2,5) }],
+  armadilheiro:     [{ item: 'armadilha_ferro', qtd: rand(2,4) }, { item: 'carne_caca', qtd: rand(1,2) }],
+  moleiro:          [{ item: 'saco_farinha', qtd: rand(2,5) }, { item: 'farinha', qtd: rand(3,8) }],
+  pastor:           [{ item: 'cajado', qtd: 1 }, { item: 'carne_ovelha', qtd: rand(1,2) }],
+};
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   UTILITÁRIOS
+══════════════════════════════════════════════════════════════════════════════ */
 
 function rand(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function pick(arr) {
+function escolher(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function weightedPick(items) {
-  const totalWeight = items.reduce((sum, i) => sum + i.weight, 0);
-  let roll = Math.random() * totalWeight;
-  for (const item of items) {
-    roll -= item.weight;
-    if (roll <= 0) return item.role;
+function escolherPonderado(itens) {
+  const total = itens.reduce((soma, i) => soma + i.weight, 0);
+  let rolar = Math.random() * total;
+  for (const item of itens) {
+    rolar -= item.weight;
+    if (rolar <= 0) return item.role;
   }
-  return items[items.length - 1].role;
+  return itens[itens.length - 1].role;
 }
 
-function genName(gender) {
-  const first = gender === 'male'
-    ? pick(FIRST_NAMES_M)
-    : pick(FIRST_NAMES_F);
-  return `${first} ${pick(LAST_NAMES)}`;
+function gerarNome(genero) {
+  const primeiro = genero === 'masculino'
+    ? escolher(NOMES_MASCULINOS)
+    : escolher(NOMES_FEMININOS);
+  return `${primeiro} ${escolher(SOBRENOMES)}`;
 }
 
-function genAge(role) {
-  if (role === 'child') return rand(6, 15);
-  if (role === 'elder') return rand(62, 80);
-  if (['nobleman','merchant','priest'].includes(role)) return rand(30, 60);
+function gerarIdade(profissao) {
+  if (profissao === 'crianca') return rand(6, 15);
+  if (profissao === 'anciao')  return rand(62, 80);
+  if (['nobre','mercador','sacerdote'].includes(profissao)) return rand(30, 60);
   return rand(18, 55);
 }
 
-function genGold(role, age) {
+function gerarOuro(profissao) {
   const base = {
-    nobleman: rand(500, 2000),
-    merchant: rand(200, 800),
-    blacksmith: rand(100, 400),
-    innkeeper: rand(150, 500),
-    guard: rand(30, 100),
-    priest: rand(50, 200),
-    sailor: rand(20, 80),
-    craftsman: rand(50, 200),
-    farmer: rand(20, 80),
-    fisherman: rand(20, 70),
-    hunter: rand(15, 60),
-    miner: rand(30, 100),
-    thief: rand(10, 150),
-    smuggler: rand(50, 300),
-    scholar: rand(30, 120),
-    beggar: rand(0, 10),
-    child: rand(0, 5),
-    servant: rand(5, 25),
-    dock_worker: rand(10, 40),
-    bard: rand(10, 50),
+    nobre:            rand(500, 2000),
+    mercador:         rand(200, 800),
+    ferreiro:         rand(100, 400),
+    estalajadeiro:    rand(150, 500),
+    guarda:           rand(30, 100),
+    sacerdote:        rand(50, 200),
+    marinheiro:       rand(20, 80),
+    artesao:          rand(50, 200),
+    lavrador:         rand(20, 80),
+    pescador:         rand(20, 70),
+    cacador:          rand(15, 60),
+    minerador:        rand(30, 100),
+    ladrao:           rand(10, 150),
+    contrabandista:   rand(50, 300),
+    estudioso:        rand(30, 120),
+    mendigo:          rand(0, 10),
+    crianca:          rand(0, 5),
+    servo:            rand(5, 25),
+    estivador:        rand(10, 40),
+    bardo:            rand(10, 50),
   };
-  return base[role] ?? rand(10, 60);
+  return base[profissao] ?? rand(10, 60);
 }
 
-function genPersonality() {
-  const count = rand(2, 4);
-  const traits = [];
-  const pool = [...INNATE_TRAITS];
-  for (let i = 0; i < count; i++) {
+function gerarPersonalidade() {
+  const qtd = rand(2, 4);
+  const tracos = [];
+  const pool = [...TRACOS_INATOS];
+  for (let i = 0; i < qtd; i++) {
     const idx = Math.floor(Math.random() * pool.length);
-    traits.push(pool.splice(idx, 1)[0]);
+    tracos.push(pool.splice(idx, 1)[0]);
   }
-  return { traits, acquired: [], dark: [] };
+  return { tracos, adquiridos: [], sombrios: [] };
 }
 
-function genSkills(role) {
-  const pool = SKILLS_BY_ROLE[role] || [];
-  const result = {};
-  for (const skill of pool) {
-    result[skill] = rand(1, 5);
+function gerarHabilidades(profissao) {
+  const pool = HABILIDADES_POR_PROFISSAO[profissao] || [];
+  const resultado = {};
+  for (const hab of pool) {
+    resultado[hab] = rand(1, 5);
   }
-  return result;
+  return resultado;
 }
 
-function genInventory(role, gold) {
-  const inv = [];
-  // Cada profissão tem itens básicos
-  const startingItems = {
-    blacksmith:  [{ item_key: 'hammer', quantity: 1 }, { item_key: 'iron_ingot', quantity: rand(3,8) }],
-    guard:       [{ item_key: 'shortsword', quantity: 1 }, { item_key: 'leather_armor', quantity: 1 }],
-    merchant:    [{ item_key: 'merchant_scale', quantity: 1 }, { item_key: 'trade_ledger', quantity: 1 }],
-    farmer:      [{ item_key: 'pitchfork', quantity: 1 }, { item_key: 'seeds', quantity: rand(5,15) }],
-    fisherman:   [{ item_key: 'fishing_rod', quantity: 1 }, { item_key: 'net', quantity: rand(1,3) }],
-    hunter:      [{ item_key: 'hunting_bow', quantity: 1 }, { item_key: 'arrows', quantity: rand(10,30) }],
-    healer:      [{ item_key: 'healing_herb', quantity: rand(5,15) }, { item_key: 'bandage', quantity: rand(3,8) }],
-    miner:       [{ item_key: 'pickaxe', quantity: 1 }, { item_key: 'lantern', quantity: 1 }],
-    priest:      [{ item_key: 'holy_symbol', quantity: 1 }, { item_key: 'prayer_book', quantity: 1 }],
-    sailor:      [{ item_key: 'rope', quantity: rand(2,5) }, { item_key: 'sailors_knife', quantity: 1 }],
-    bard:        [{ item_key: 'lute', quantity: 1 }],
-    scholar:     [{ item_key: 'scroll', quantity: rand(2,6) }, { item_key: 'ink_and_quill', quantity: 1 }],
-    thief:       [{ item_key: 'lockpick', quantity: rand(2,5) }, { item_key: 'dagger', quantity: 1 }],
-  };
-  return startingItems[role] || [];
+function gerarInventario(profissao) {
+  const items = INVENTARIO_INICIAL[profissao] || [];
+  // Normaliza para o formato { item_key, quantidade }
+  return items.map(i => ({ item_key: i.item, quantidade: i.qtd }));
 }
 
-function genProperties(role, gold) {
-  if (['nobleman','merchant'].includes(role) && gold > 300) {
-    return [{ type: 'house', name: 'Casa familiar', region_id: 1, value: rand(300, 1000) }];
+function gerarPropriedades(profissao, ouro, regiaoId) {
+  if (['nobre','mercador'].includes(profissao) && ouro > 300) {
+    return [{ tipo: 'casa', nome: 'Casa familiar', regiao_id: regiaoId, valor: rand(300, 1000) }];
   }
-  if (['blacksmith','innkeeper'].includes(role)) {
-    return [{ type: 'shop', name: `${role === 'blacksmith' ? 'Ferraria' : 'Estalagem'} pessoal`, region_id: 1, value: rand(200, 600) }];
+  if (['ferreiro','estalajadeiro'].includes(profissao)) {
+    const nome = profissao === 'ferreiro' ? 'Ferraria pessoal' : 'Estalagem pessoal';
+    return [{ tipo: 'comercio', nome, regiao_id: regiaoId, valor: rand(200, 600) }];
   }
-  if (['farmer'].includes(role)) {
-    return [{ type: 'land', name: 'Parcela de terra', region_id: 3, value: rand(100, 400) }];
+  if (profissao === 'lavrador') {
+    return [{ tipo: 'terra', nome: 'Parcela de terra', regiao_id: 3, valor: rand(100, 400) }];
   }
   return [];
 }
 
-function genObjectives(role, age, regionId) {
-  const objectives = [];
+function gerarObjetivos(profissao, idade, regiaoId) {
+  const objetivos = [];
 
-  // Objetivos por papel social
-  if (age > 20 && age < 45 && !['child','elder'].includes(role)) {
+  // Solteiro adulto jovem — busca cônjuge
+  if (idade > 20 && idade < 45 && !['crianca','anciao'].includes(profissao)) {
     if (Math.random() < 0.35) {
-      objectives.push({ type: 'find_spouse', status: 'active', priority: rand(3, 6), payload: { age_min: Math.max(18, age - 10), age_max: age + 10 } });
+      objetivos.push({
+        tipo: 'encontrar_conjuge',
+        status: 'ativo',
+        prioridade: rand(3, 6),
+        dados: { idade_min: Math.max(18, idade - 10), idade_max: idade + 10 },
+      });
     }
   }
-  if (['merchant','blacksmith','innkeeper','craftsman'].includes(role) && Math.random() < 0.3) {
-    objectives.push({ type: 'accumulate_gold', status: 'active', priority: rand(3, 6), payload: { target_amount: rand(300, 1500), reason: 'security' } });
+
+  // Profissionais querem acumular ouro
+  if (['mercador','ferreiro','estalajadeiro','artesao'].includes(profissao) && Math.random() < 0.3) {
+    objetivos.push({
+      tipo: 'acumular_ouro',
+      status: 'ativo',
+      prioridade: rand(3, 6),
+      dados: { meta: rand(300, 1500), motivo: 'seguranca' },
+    });
   }
-  if (role === 'merchant' && Math.random() < 0.25) {
-    objectives.push({ type: 'expand_business', status: 'active', priority: rand(4, 7), payload: { business_type: 'trade', expansion_goal: 'open_second_shop' } });
+
+  // Mercador quer expandir negócio
+  if (profissao === 'mercador' && Math.random() < 0.25) {
+    objetivos.push({
+      tipo: 'expandir_negocio',
+      status: 'ativo',
+      prioridade: rand(4, 7),
+      dados: { tipo_negocio: 'comercio', meta: 'abrir_segunda_loja' },
+    });
   }
+
+  // Desejo de aprender algo novo
   if (Math.random() < 0.15) {
-    objectives.push({ type: 'learn_skill', status: 'active', priority: rand(1, 4), payload: { skill_name: pick(['brewing','cooking','woodworking','languages','healing']), progress: 0, target_level: rand(2, 4) } });
-  }
-  if (age > 40 && ['farmer','fisherman','craftsman','merchant'].includes(role) && Math.random() < 0.2) {
-    objectives.push({ type: 'marry_off_child', status: 'blocked', priority: rand(4, 7), payload: { child_npc_id: null } });
+    objetivos.push({
+      tipo: 'aprender_habilidade',
+      status: 'ativo',
+      prioridade: rand(1, 4),
+      dados: {
+        habilidade: escolher(['fermentacao','culinaria','marcenaria','idiomas','cura']),
+        progresso: 0,
+        nivel_alvo: rand(2, 4),
+      },
+    });
   }
 
-  return objectives;
+  // Pai/mãe adulto quer casar o filho
+  if (idade > 40 && ['lavrador','pescador','artesao','mercador'].includes(profissao) && Math.random() < 0.2) {
+    objetivos.push({
+      tipo: 'casar_filho',
+      status: 'bloqueado',
+      prioridade: rand(4, 7),
+      dados: { npc_filho_id: null }, // resolvido após seed dos NPCs
+    });
+  }
+
+  // Agricultores e pastores querem garantir comida para o inverno
+  if (['lavrador','pastor','pescador'].includes(profissao) && Math.random() < 0.3) {
+    objetivos.push({
+      tipo: 'estocar_comida',
+      status: 'ativo',
+      prioridade: rand(5, 8),
+      dados: { meta_unidades: rand(20, 60), estocado: 0 },
+    });
+  }
+
+  return objetivos;
 }
 
-function genRelationships(npcId, allNpcs, regionId) {
-  // Retorna lista de relações para inserir depois que todos os NPCs existirem
-  // Será preenchido na fase 2 do seed
-  return [];
-}
+/* ══════════════════════════════════════════════════════════════════════════════
+   GERADOR DE NPC
+══════════════════════════════════════════════════════════════════════════════ */
 
-/* ── Gerador de NPC ──────────────────────────────────────────────────────────── */
+function gerarNPC(regiaoId, localId, posX, posY) {
+  const genero    = Math.random() < 0.48 ? 'masculino' : 'feminino';
+  const profissao = escolherPonderado(PROFISSOES[regiaoId] || PROFISSOES[1]);
+  const idade     = gerarIdade(profissao);
+  const nome      = gerarNome(genero);
+  const ouro      = gerarOuro(profissao);
+  const divindade = Math.random() < 0.8 ? escolher(DIVINDADES) : null;
+  const faccao    = Math.random() < 0.4 ? escolher(FACÇÕES)  : 'nenhuma';
 
-function generateNPC(regionId, locationId, posX, posY) {
-  const gender  = Math.random() < 0.48 ? 'male' : 'female';
-  const role    = weightedPick(PROFESSIONS[regionId] || PROFESSIONS[1]);
-  const age     = genAge(role);
-  const name    = genName(gender);
-  const gold    = genGold(role, age);
-  const deity   = Math.random() < 0.8 ? pick(DEITIES) : null;
-  const faction = Math.random() < 0.4 ? pick(FACTIONS) : 'none';
+  // Necessidades vitais — começam em valores aleatórios razoáveis
+  const hp    = rand(80, 100);
+  const fome  = rand(50, 100);  // 0 = faminto, 100 = satisfeito
+  const sede  = rand(50, 100);  // 0 = desidratado, 100 = hidratado
 
   return {
-    world_id:    WORLD_ID,
-    region_id:   regionId,
-    location_id: locationId,
+    mundo_id:    MUNDO_ID,
+    regiao_id:   regiaoId,
+    local_id:    localId,
     pos_x:       posX + (Math.random() * 10 - 5),
     pos_y:       posY + (Math.random() * 10 - 5),
-    name,
-    gender,
-    age,
-    role,
-    gold,
-    religion:    deity,
-    faction:     faction,
-    personality: genPersonality(),
-    skills:      genSkills(role),
-    inventory:   genInventory(role, gold),
-    properties:  genProperties(role, gold),
-    objectives:  genObjectives(role, age, regionId),
-    reputation:  rand(0, 100),
-    is_alive:    1,
-    is_hostile:  role === 'cultist' || role === 'outlaw' ? (Math.random() < 0.4 ? 1 : 0) : 0,
-    description: `${name}, ${age} anos, ${role}.`,
-    knowledge:   [],
-    loot_table:  role !== 'child' ? JSON.stringify({ gold_min: Math.floor(gold * 0.1), gold_max: Math.floor(gold * 0.4) }) : null,
+    nome,
+    genero,
+    idade,
+    profissao,
+    ouro,
+    religiao:    divindade,
+    faccao,
+    personalidade: gerarPersonalidade(),
+    habilidades:   gerarHabilidades(profissao),
+    inventario:    gerarInventario(profissao),
+    propriedades:  gerarPropriedades(profissao, ouro, regiaoId),
+    objetivos:     gerarObjetivos(profissao, idade, regiaoId),
+    reputacao:     rand(0, 100),
+    hp,
+    max_hp:        100,
+    fome,
+    sede,
+    is_alive:      1,
+    is_hostile:    ['cultista','fora_da_lei'].includes(profissao) ? (Math.random() < 0.4 ? 1 : 0) : 0,
+    descricao:     `${nome}, ${idade} anos, ${profissao}.`,
+    conhecimento:  [],
+    loot_table:    profissao !== 'crianca'
+      ? JSON.stringify({ ouro_min: Math.floor(ouro * 0.1), ouro_max: Math.floor(ouro * 0.4) })
+      : null,
   };
 }
 
-/* ── Gerador de relações familiares ─────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════════════
+   CONSTRUTOR DE RELAÇÕES SOCIAIS
+══════════════════════════════════════════════════════════════════════════════ */
 
-function buildFamilyRelations(npcs) {
-  const relations = [];
-  const adults = npcs.filter(n => n.age >= 20 && n.age <= 55 && n.is_alive);
-  const children = npcs.filter(n => n.age < 18 && n.is_alive);
-  const byRegion = {};
+function construirRelacoes(npcs) {
+  const relacoes  = [];
+  const adultos   = npcs.filter(n => n.idade >= 20 && n.idade <= 55 && n.is_alive);
+  const criancas  = npcs.filter(n => n.idade < 18  && n.is_alive);
+  const porRegiao = {};
 
-  for (const n of adults) {
-    if (!byRegion[n.region_id]) byRegion[n.region_id] = [];
-    byRegion[n.region_id].push(n);
+  for (const n of adultos) {
+    if (!porRegiao[n.regiao_id]) porRegiao[n.regiao_id] = [];
+    porRegiao[n.regiao_id].push(n);
   }
 
-  // Criar casais (30% dos adultos)
-  const couples = new Set();
-  for (const [regionId, regionAdults] of Object.entries(byRegion)) {
-    const males   = regionAdults.filter(n => n.gender === 'male');
-    const females = regionAdults.filter(n => n.gender === 'female');
-    const pairCount = Math.floor(Math.min(males.length, females.length) * 0.3);
+  // ── Casais (30% dos adultos) ─────────────────────────────────────────────
+  const jaCasados = new Set();
+  for (const [, regionAdultos] of Object.entries(porRegiao)) {
+    const homens   = regionAdultos.filter(n => n.genero === 'masculino');
+    const mulheres = regionAdultos.filter(n => n.genero === 'feminino');
+    const pares    = Math.floor(Math.min(homens.length, mulheres.length) * 0.3);
 
-    for (let i = 0; i < pairCount; i++) {
-      if (i >= males.length || i >= females.length) break;
-      const m = males[i];
-      const f = females[i];
-      if (couples.has(m.idx) || couples.has(f.idx)) continue;
-      couples.add(m.idx);
-      couples.add(f.idx);
+    for (let i = 0; i < pares; i++) {
+      if (i >= homens.length || i >= mulheres.length) break;
+      const h = homens[i];
+      const m = mulheres[i];
+      if (jaCasados.has(h.idx) || jaCasados.has(m.idx)) continue;
+      jaCasados.add(h.idx);
+      jaCasados.add(m.idx);
 
-      relations.push({ npc_id: m.idx, target_npc_id: f.idx, relation_type: 'spouse', affinity: rand(40, 90), tags: JSON.stringify(['married']) });
-      relations.push({ npc_id: f.idx, target_npc_id: m.idx, relation_type: 'spouse', affinity: rand(40, 90), tags: JSON.stringify(['married']) });
+      const afinidade = rand(40, 90);
+      relacoes.push({ npc_id: h.idx, alvo_npc_id: m.idx, tipo_relacao: 'conjuge', afinidade, tags: JSON.stringify(['casados']) });
+      relacoes.push({ npc_id: m.idx, alvo_npc_id: h.idx, tipo_relacao: 'conjuge', afinidade, tags: JSON.stringify(['casados']) });
     }
   }
 
-  // Criar relações pai/filho (alguns casais têm filhos)
-  const coupleList = [...couples];
-  for (let i = 0; i < coupleList.length; i += 2) {
-    if (i + 1 >= coupleList.length) break;
-    const parent1Idx = coupleList[i];
-    const parent2Idx = coupleList[i + 1];
-    const parent1 = npcs[parent1Idx];
-    const parent2 = npcs[parent2Idx];
-    if (!parent1 || !parent2) continue;
+  // ── Filhos ───────────────────────────────────────────────────────────────
+  const listaPareja = [...jaCasados];
+  for (let i = 0; i < listaPareja.length; i += 2) {
+    if (i + 1 >= listaPareja.length) break;
+    const pai1 = npcs.find(n => n.idx === listaPareja[i]);
+    const pai2 = npcs.find(n => n.idx === listaPareja[i + 1]);
+    if (!pai1 || !pai2) continue;
 
-    const regionChildren = children.filter(c => c.region_id === parent1.region_id);
-    const childCount = Math.min(rand(0, 3), regionChildren.length);
-    for (let j = 0; j < childCount; j++) {
-      const child = regionChildren[j];
-      if (!child) break;
-      relations.push({ npc_id: parent1.idx, target_npc_id: child.idx, relation_type: 'parent', affinity: rand(60, 95), tags: JSON.stringify(['family']) });
-      relations.push({ npc_id: child.idx,   target_npc_id: parent1.idx, relation_type: 'child', affinity: rand(50, 90), tags: JSON.stringify(['family']) });
-      relations.push({ npc_id: parent2.idx, target_npc_id: child.idx, relation_type: 'parent', affinity: rand(60, 95), tags: JSON.stringify(['family']) });
-      relations.push({ npc_id: child.idx,   target_npc_id: parent2.idx, relation_type: 'child', affinity: rand(50, 90), tags: JSON.stringify(['family']) });
-    }
-  }
-
-  // Criar amizades (20% dos NPCs têm 1-3 amigos próximos na mesma região)
-  for (const npc of adults) {
-    const regionMates = (byRegion[npc.region_id] || []).filter(n => n.idx !== npc.idx);
-    const friendCount = rand(0, 3);
-    const chosen = regionMates.sort(() => Math.random() - 0.5).slice(0, friendCount);
-    for (const friend of chosen) {
-      const existing = relations.find(r => r.npc_id === npc.idx && r.target_npc_id === friend.idx);
-      if (!existing) {
-        relations.push({ npc_id: npc.idx, target_npc_id: friend.idx, relation_type: 'friend', affinity: rand(20, 70), tags: JSON.stringify([]) });
+    const criancasRegiao = criancas.filter(c => c.regiao_id === pai1.regiao_id);
+    const qtd = Math.min(rand(0, 3), criancasRegiao.length);
+    for (let j = 0; j < qtd; j++) {
+      const filho = criancasRegiao[j];
+      if (!filho) break;
+      for (const pai of [pai1, pai2]) {
+        relacoes.push({ npc_id: pai.idx,   alvo_npc_id: filho.idx, tipo_relacao: 'pai',   afinidade: rand(60, 95), tags: JSON.stringify(['familia']) });
+        relacoes.push({ npc_id: filho.idx, alvo_npc_id: pai.idx,   tipo_relacao: 'filho', afinidade: rand(50, 90), tags: JSON.stringify(['familia']) });
       }
     }
   }
 
-  // Criar rivalidades (5% têm um rival)
-  for (const npc of adults) {
+  // ── Amizades (0–3 amigos por adulto na mesma região) ─────────────────────
+  for (const npc of adultos) {
+    const conhecidos = (porRegiao[npc.regiao_id] || []).filter(n => n.idx !== npc.idx);
+    const qtdAmigos  = rand(0, 3);
+    const escolhidos = conhecidos.sort(() => Math.random() - 0.5).slice(0, qtdAmigos);
+    for (const amigo of escolhidos) {
+      const jaExiste = relacoes.find(r => r.npc_id === npc.idx && r.alvo_npc_id === amigo.idx);
+      if (!jaExiste) {
+        relacoes.push({ npc_id: npc.idx, alvo_npc_id: amigo.idx, tipo_relacao: 'amigo', afinidade: rand(20, 70), tags: JSON.stringify([]) });
+      }
+    }
+  }
+
+  // ── Rivalidades (5% dos adultos na mesma profissão) ──────────────────────
+  for (const npc of adultos) {
     if (Math.random() < 0.05) {
-      const regionMates = (byRegion[npc.region_id] || []).filter(n => n.idx !== npc.idx && n.role === npc.role);
-      if (regionMates.length > 0) {
-        const rival = pick(regionMates);
-        relations.push({ npc_id: npc.idx, target_npc_id: rival.idx, relation_type: 'rival', affinity: rand(-70, -20), tags: JSON.stringify(['rival','competitor']) });
+      const rivais = (porRegiao[npc.regiao_id] || []).filter(n => n.idx !== npc.idx && n.profissao === npc.profissao);
+      if (rivais.length > 0) {
+        const rival = escolher(rivais);
+        relacoes.push({ npc_id: npc.idx, alvo_npc_id: rival.idx, tipo_relacao: 'rival', afinidade: rand(-70, -20), tags: JSON.stringify(['rival','competidor']) });
       }
     }
   }
 
-  // Criar relações empregador/empregado
-  const employers = adults.filter(n => ['merchant','innkeeper','blacksmith','nobleman','farmer'].includes(n.role));
-  const employees = adults.filter(n => ['servant','dock_worker','craftsman','guard'].includes(n.role));
-  for (const emp of employers) {
-    const workerCount = rand(0, 2);
-    const available = employees.filter(n => n.region_id === emp.region_id);
-    const chosen = available.sort(() => Math.random() - 0.5).slice(0, workerCount);
-    for (const worker of chosen) {
-      relations.push({ npc_id: emp.idx,    target_npc_id: worker.idx, relation_type: 'employer', affinity: rand(10, 50), tags: JSON.stringify(['employer']) });
-      relations.push({ npc_id: worker.idx, target_npc_id: emp.idx,    relation_type: 'employee', affinity: rand(10, 40), tags: JSON.stringify(['employee']) });
+  // ── Empregador / empregado ───────────────────────────────────────────────
+  const empregadores = adultos.filter(n => ['mercador','estalajadeiro','ferreiro','nobre','lavrador'].includes(n.profissao));
+  const empregados   = adultos.filter(n => ['servo','estivador','artesao','guarda'].includes(n.profissao));
+  for (const emp of empregadores) {
+    const disponiveis = empregados.filter(n => n.regiao_id === emp.regiao_id);
+    const escolhidos  = disponiveis.sort(() => Math.random() - 0.5).slice(0, rand(0, 2));
+    for (const trabalhador of escolhidos) {
+      relacoes.push({ npc_id: emp.idx,         alvo_npc_id: trabalhador.idx, tipo_relacao: 'empregador', afinidade: rand(10, 50), tags: JSON.stringify(['empregador']) });
+      relacoes.push({ npc_id: trabalhador.idx, alvo_npc_id: emp.idx,         tipo_relacao: 'empregado',  afinidade: rand(10, 40), tags: JSON.stringify(['empregado']) });
     }
   }
 
-  return relations;
+  return relacoes;
 }
 
-/* ── Script principal ────────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════════════
+   SCRIPT PRINCIPAL
+══════════════════════════════════════════════════════════════════════════════ */
 
-const DISTRIBUTION = [
-  { region_id: 1, count: 350 },
-  { region_id: 2, count: 50  },
-  { region_id: 3, count: 60  },
-  { region_id: 4, count: 55  },
-  { region_id: 5, count: 45  },
-  { region_id: 6, count: 10  },
+const DISTRIBUICAO = [
+  { regiao_id: 1, qtd: 350 },
+  { regiao_id: 2, qtd: 50  },
+  { regiao_id: 3, qtd: 60  },
+  { regiao_id: 4, qtd: 55  },
+  { regiao_id: 5, qtd: 45  },
+  { regiao_id: 6, qtd: 10  },
 ];
 
 async function main() {
@@ -470,145 +600,161 @@ async function main() {
 
   try {
     // Buscar locais por região
-    const [locationRows] = await conn.execute(
+    const [locaisRows] = await conn.execute(
       'SELECT id, region_id, pos_x, pos_y FROM locations WHERE region_id IN (1,2,3,4,5,6)'
     );
-    const locationsByRegion = {};
-    for (const loc of locationRows) {
-      if (!locationsByRegion[loc.region_id]) locationsByRegion[loc.region_id] = [];
-      locationsByRegion[loc.region_id].push(loc);
+    const locaisPorRegiao = {};
+    for (const loc of locaisRows) {
+      if (!locaisPorRegiao[loc.region_id]) locaisPorRegiao[loc.region_id] = [];
+      locaisPorRegiao[loc.region_id].push(loc);
     }
 
     // Limpar NPCs existentes
     console.log('🧹 Limpando NPCs anteriores...');
     await conn.execute('DELETE FROM npc_relations WHERE 1=1');
     await conn.execute('DELETE FROM npc_objectives WHERE 1=1');
-    await conn.execute('DELETE FROM npcs WHERE world_id = ?', [WORLD_ID]);
+    await conn.execute('DELETE FROM npcs WHERE world_id = ?', [MUNDO_ID]);
 
     // Gerar NPCs
-    const allNPCs = [];
-    for (const { region_id, count } of DISTRIBUTION) {
-      const locs = locationsByRegion[region_id] || [];
-      if (locs.length === 0) {
-        console.warn(`   ⚠ Região ${region_id} sem locais. Pulando.`);
+    const todosNPCs = [];
+    for (const { regiao_id, qtd } of DISTRIBUICAO) {
+      const locais = locaisPorRegiao[regiao_id] || [];
+      if (locais.length === 0) {
+        console.warn(`   ⚠ Região ${regiao_id} sem locais. Pulando.`);
         continue;
       }
-      for (let i = 0; i < count; i++) {
-        const loc = pick(locs);
-        allNPCs.push(generateNPC(region_id, loc.id, parseFloat(loc.pos_x), parseFloat(loc.pos_y)));
+      for (let i = 0; i < qtd; i++) {
+        const local = escolher(locais);
+        todosNPCs.push(gerarNPC(regiao_id, local.id, parseFloat(local.pos_x), parseFloat(local.pos_y)));
       }
     }
 
-    console.log(`\n🧑‍🤝‍🧑 Inserindo ${allNPCs.length} NPCs...`);
+    console.log(`\n🧑‍🤝‍🧑 Inserindo ${todosNPCs.length} NPCs...`);
 
-    // Inserir NPCs no banco
-    const insertedIds = [];
-    for (const npc of allNPCs) {
-      const [result] = await conn.execute(
+    // Inserir NPCs — com hp, max_hp, fome, sede
+    const idsInseridos = [];
+    for (const npc of todosNPCs) {
+      const [resultado] = await conn.execute(
         `INSERT INTO npcs
-           (world_id, region_id, location_id, pos_x, pos_y, name, gender, age, role,
-            gold, religion, faction, personality, skills, inventory, properties,
-            objectives, reputation, is_alive, is_hostile, description, knowledge, loot_table)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+           (world_id, region_id, location_id, pos_x, pos_y,
+            name, gender, age, role,
+            gold, religion, faction,
+            personality, skills, inventory, properties, objectives,
+            reputation, hp, max_hp, hunger, thirst,
+            is_alive, is_hostile, description, knowledge, loot_table)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [
-          npc.world_id, npc.region_id, npc.location_id,
+          npc.mundo_id, npc.regiao_id, npc.local_id,
           npc.pos_x.toFixed(4), npc.pos_y.toFixed(4),
-          npc.name, npc.gender, npc.age, npc.role,
-          npc.gold, npc.religion, npc.faction,
-          JSON.stringify(npc.personality),
-          JSON.stringify(npc.skills),
-          JSON.stringify(npc.inventory),
-          JSON.stringify(npc.properties),
-          JSON.stringify(npc.objectives),
-          npc.reputation,
+          npc.nome, npc.genero, npc.idade, npc.profissao,
+          npc.ouro, npc.religiao, npc.faccao,
+          JSON.stringify(npc.personalidade),
+          JSON.stringify(npc.habilidades),
+          JSON.stringify(npc.inventario),
+          JSON.stringify(npc.propriedades),
+          JSON.stringify(npc.objetivos),
+          npc.reputacao, npc.hp, npc.max_hp, npc.fome, npc.sede,
           npc.is_alive, npc.is_hostile,
-          npc.description,
-          JSON.stringify(npc.knowledge),
+          npc.descricao,
+          JSON.stringify(npc.conhecimento),
           npc.loot_table,
         ]
       );
-      insertedIds.push(result.insertId);
+      idsInseridos.push(resultado.insertId);
     }
 
-    // Marcar índice para referência nas relações
-    for (let i = 0; i < allNPCs.length; i++) {
-      allNPCs[i].idx = insertedIds[i];
+    // Marcar índice real do banco em cada NPC
+    for (let i = 0; i < todosNPCs.length; i++) {
+      todosNPCs[i].idx = idsInseridos[i];
     }
 
-    // Gerar objetivos separados (tabela npc_objectives)
+    // Inserir objetivos na tabela npc_objectives
     console.log('\n🎯 Inserindo objetivos...');
-    let objCount = 0;
-    for (let i = 0; i < allNPCs.length; i++) {
-      const npc = allNPCs[i];
-      for (const obj of npc.objectives) {
+    let totalObjetivos = 0;
+    for (const npc of todosNPCs) {
+      for (const obj of npc.objetivos) {
         await conn.execute(
           `INSERT INTO npc_objectives (npc_id, type, status, priority, payload)
            VALUES (?,?,?,?,?)`,
-          [npc.idx, obj.type, obj.status, obj.priority, JSON.stringify(obj.payload)]
+          [npc.idx, obj.tipo, obj.status, obj.prioridade, JSON.stringify(obj.dados)]
         );
-        objCount++;
+        totalObjetivos++;
       }
     }
 
-    // Construir e inserir relações
+    // Construir relações sociais
     console.log('\n💞 Construindo relações sociais...');
-    const relations = buildFamilyRelations(allNPCs);
-    let relCount = 0;
-    for (const rel of relations) {
-      if (!rel.npc_id || !rel.target_npc_id) continue;
-      try {
-        await conn.execute(
-          `INSERT IGNORE INTO npc_relations
-             (npc_id, target_npc_id, relation_type, affinity, tags, is_known_to_player)
-           VALUES (?,?,?,?,?,?)`,
-          [rel.npc_id, rel.target_npc_id, rel.relation_type, rel.affinity, rel.tags, JSON.stringify({})]
-        );
-        relCount++;
-      } catch (e) {
-        // ignorar duplicatas
-      }
+    const relacoes = construirRelacoes(todosNPCs);
+    for (const rel of relacoes) {
+      await conn.execute(
+        `INSERT IGNORE INTO npc_relations
+           (npc_id, target_npc_id, relation_type, affinity, tags)
+         VALUES (?,?,?,?,?)`,
+        [rel.npc_id, rel.alvo_npc_id, rel.tipo_relacao, rel.afinidade, rel.tags]
+      );
     }
 
-    // Resolver objetivo marry_off_child: tentar associar filhos reais
+    // Resolver objetivos dependentes (casar_filho precisa do id real do filho)
     console.log('\n🔗 Resolvendo objetivos dependentes...');
-    const parentRelations = relations.filter(r => r.relation_type === 'parent');
-    for (const pr of parentRelations) {
-      const parentNpc = allNPCs.find(n => n.idx === pr.npc_id);
-      if (!parentNpc) continue;
-      const marriageObj = parentNpc.objectives.find(o => o.type === 'marry_off_child');
-      if (marriageObj && marriageObj.payload.child_npc_id === null) {
-        marriageObj.payload.child_npc_id = pr.target_npc_id;
+    const pais = todosNPCs.filter(n => n.objetivos.some(o => o.tipo === 'casar_filho'));
+    for (const pai of pais) {
+      const [filhosRows] = await conn.execute(
+        `SELECT npc_id FROM npc_relations
+          WHERE npc_id = ? AND tipo_relacao = 'pai' LIMIT 1`,
+        [pai.idx]
+      );
+      // Tenta a coluna correta
+      const [filhosRows2] = await conn.execute(
+        `SELECT target_npc_id FROM npc_relations
+          WHERE npc_id = ? AND relation_type = 'pai' LIMIT 1`,
+        [pai.idx]
+      );
+      const filhoId = filhosRows2[0]?.target_npc_id;
+      if (filhoId) {
         await conn.execute(
-          `UPDATE npc_objectives SET status='active', payload=? WHERE npc_id=? AND type='marry_off_child'`,
-          [JSON.stringify(marriageObj.payload), pr.npc_id]
+          `UPDATE npc_objectives
+              SET status = 'ativo',
+                  requires_npc_id = ?,
+                  payload = JSON_SET(payload, '$.npc_filho_id', ?)
+            WHERE npc_id = ? AND type = 'casar_filho'`,
+          [filhoId, filhoId, pai.idx]
         );
       }
     }
 
-    console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('✅ NPCs gerados com sucesso!');
-    console.log(`   NPCs criados:    ${allNPCs.length}`);
-    console.log(`   Objetivos:       ${objCount}`);
-    console.log(`   Relações:        ${relCount}`);
-    console.log('');
-
-    // Estatísticas por região
-    for (const { region_id, count } of DISTRIBUTION) {
-      const r = allNPCs.filter(n => n.region_id === region_id);
-      const roleCount = r.reduce((acc, n) => { acc[n.role] = (acc[n.role] || 0) + 1; return acc; }, {});
-      const top3 = Object.entries(roleCount).sort((a,b) => b[1]-a[1]).slice(0,3).map(([r,c]) => `${r}(${c})`).join(', ');
-      console.log(`   Região ${region_id}: ${r.length} NPCs — ${top3}`);
+    // Relatório final
+    const contagem = {};
+    for (const { regiao_id, qtd } of DISTRIBUICAO) {
+      const npcsRegiao = todosNPCs.filter(n => n.regiao_id === regiao_id);
+      const profissoesCont = {};
+      for (const n of npcsRegiao) {
+        profissoesCont[n.profissao] = (profissoesCont[n.profissao] || 0) + 1;
+      }
+      const top3 = Object.entries(profissoesCont)
+        .sort((a,b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([p, c]) => `${p}(${c})`)
+        .join(', ');
+      contagem[regiao_id] = { total: npcsRegiao.length, top3 };
     }
 
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    console.log('\n' + '━'.repeat(45));
+    console.log('✅ NPCs gerados com sucesso!');
+    console.log(`   NPCs criados:    ${todosNPCs.length}`);
+    console.log(`   Objetivos:       ${totalObjetivos}`);
+    console.log(`   Relações:        ${relacoes.length}`);
+    console.log('');
+    for (const [rid, dados] of Object.entries(contagem)) {
+      console.log(`   Região ${rid}: ${dados.total} NPCs — ${dados.top3}`);
+    }
+    console.log('━'.repeat(45) + '\n');
 
+  } catch (err) {
+    console.error('❌ Erro no seeder de NPCs:', err.message);
+    console.error(err);
   } finally {
     await conn.end();
   }
 }
 
-main().catch(err => {
-  console.error('\n❌ Erro no seeder de NPCs:', err.message);
-  console.error(err.stack);
-  process.exit(1);
-});
+main();
