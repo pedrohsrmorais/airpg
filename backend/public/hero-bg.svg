@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <radialGradient id="sky" cx="50%" cy="100%" r="70%">
+      <stop offset="0%" stop-color="#1a0c02"/>
+      <stop offset="60%" stop-color="#0a0804"/>
+      <stop offset="100%" stop-color="#060402"/>
+    </radialGradient>
+    <radialGradient id="moon" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#e8dcc8"/>
+      <stop offset="100%" stop-color="#c9a84c" stop-opacity="0.6"/>
+    </radialGradient>
+    <filter id="blur">
+      <feGaussianBlur stdDeviation="2"/>
+    </filter>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Sky -->
+  <rect width="1200" height="600" fill="url(#sky)"/>
+
+  <!-- Stars -->
+  <g fill="#e8dcc8" opacity="0.7">
+    <circle cx="120" cy="40"  r="1.2"/><circle cx="240" cy="80"  r="0.8"/><circle cx="360" cy="30"  r="1"/>
+    <circle cx="480" cy="60"  r="1.5"/><circle cx="600" cy="20"  r="0.9"/><circle cx="720" cy="55"  r="1.1"/>
+    <circle cx="840" cy="35"  r="1.3"/><circle cx="960" cy="70"  r="0.7"/><circle cx="1080" cy="25" r="1"/>
+    <circle cx="180" cy="120" r="0.9"/><circle cx="300" cy="150" r="1.2"/><circle cx="420" cy="100" r="0.8"/>
+    <circle cx="540" cy="130" r="1"/>  <circle cx="660" cy="90"  r="1.4"/><circle cx="780" cy="140" r="0.9"/>
+    <circle cx="900" cy="110" r="1.1"/><circle cx="1020" cy="130" r="0.8"/><circle cx="1140" cy="80" r="1"/>
+    <circle cx="60"  cy="200" r="0.7"/><circle cx="150" cy="180" r="1"/><circle cx="350" cy="220" r="0.8"/>
+    <circle cx="550" cy="190" r="1.2"/><circle cx="750" cy="210" r="0.9"/><circle cx="950" cy="175" r="1"/>
+    <circle cx="1100" cy="195" r="0.8"/><circle cx="1170" cy="150" r="1.1"/>
+  </g>
+
+  <!-- Moon glow -->
+  <circle cx="900" cy="100" r="60" fill="#c9a84c" opacity="0.04" filter="url(#blur)"/>
+  <!-- Moon -->
+  <circle cx="900" cy="100" r="38" fill="url(#moon)" opacity="0.85"/>
+  <circle cx="915" cy="88"  r="6"  fill="#b09050" opacity="0.15"/>
+  <circle cx="895" cy="112" r="4"  fill="#b09050" opacity="0.12"/>
+  <circle cx="880" cy="95"  r="3"  fill="#b09050" opacity="0.10"/>
+
+  <!-- Distant mountains -->
+  <path d="M0,380 L80,240 L160,310 L250,200 L340,290 L430,180 L520,270 L610,160 L700,250 L790,210 L880,300 L970,170 L1060,280 L1150,230 L1200,290 L1200,600 L0,600 Z"
+        fill="#0f0a06" opacity="0.9"/>
+  <path d="M0,420 L100,300 L200,370 L320,260 L440,340 L560,250 L680,320 L800,260 L920,360 L1040,280 L1200,350 L1200,600 L0,600 Z"
+        fill="#130d08"/>
+
+  <!-- Foreground ruins / castle silhouette -->
+  <g fill="#0a0805">
+    <!-- Tower left -->
+    <rect x="50"  y="350" width="40" height="200"/>
+    <rect x="40"  y="340" width="60" height="15"/>
+    <rect x="45"  y="325" width="10" height="20"/>
+    <rect x="65"  y="325" width="10" height="20"/>
+    <rect x="85"  y="325" width="10" height="20"/>
+    <!-- Walls -->
+    <rect x="90"  y="400" width="120" height="150"/>
+    <!-- Tower right of left section -->
+    <rect x="210" y="360" width="35" height="190"/>
+    <rect x="200" y="350" width="55" height="15"/>
+    <!-- Gap / gate arch -->
+    <rect x="245" y="440" width="100" height="120"/>
+    <path d="M245,440 Q295,400 345,440 Z" fill="#0a0805"/>
+    <!-- Right tower -->
+    <rect x="345" y="380" width="30" height="170"/>
+    <rect x="335" y="370" width="50" height="15"/>
+  </g>
+
+  <!-- Torch glow on tower -->
+  <circle cx="210" cy="350" r="20" fill="#c9a84c" opacity="0.08" filter="url(#blur)"/>
+  <circle cx="210" cy="350" r="5"  fill="#f0c060" opacity="0.5"/>
+
+  <!-- Foreground dark ground -->
+  <rect x="0" y="520" width="1200" height="80" fill="#060402"/>
+
+  <!-- Atmospheric haze -->
+  <rect x="0" y="0" width="1200" height="600"
+        fill="url(#sky)" opacity="0.15"/>
+</svg>

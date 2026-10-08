@@ -1,0 +1,118 @@
+/* ── AIRPG Global Styles ─────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-darkest:   #0a0804;
+  --bg-dark:      #110e08;
+  --bg-mid:       #1a1410;
+  --bg-panel:     #231c14;
+  --bg-card:      #2e2418;
+  --gold:         #c9a84c;
+  --gold-light:   #e8cb7a;
+  --gold-dark:    #8a6d28;
+  --crimson:      #8b1a1a;
+  --crimson-light:#c0392b;
+  --blood:        #5c0000;
+  --silver:       #b0a090;
+  --silver-light: #d4c8b8;
+  --text-main:    #e8dcc8;
+  --text-dim:     #a09080;
+  --text-muted:   #6a5a48;
+  --border:       #3d3020;
+  --border-gold:  #6b521c;
+  --rarity-common:    #b0a090;
+  --rarity-uncommon:  #4caf50;
+  --rarity-rare:      #2196f3;
+  --rarity-epic:      #9c27b0;
+  --rarity-legendary: #ff9800;
+  --rarity-unique:    #f44336;
+  --radius: 4px;
+  --shadow: 0 4px 20px rgba(0,0,0,0.7);
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg-darkest);
+  color: var(--text-main);
+  font-family: 'Crimson Text', Georgia, serif;
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5 {
+  font-family: 'Cinzel', serif;
+  color: var(--gold-light);
+  letter-spacing: 0.04em;
+}
+
+a { color: var(--gold); text-decoration: none; }
+a:hover { color: var(--gold-light); text-decoration: underline; }
+
+button {
+  cursor: pointer;
+  font-family: 'Cinzel', serif;
+  letter-spacing: 0.06em;
+}
+
+input, textarea, select {
+  font-family: 'Crimson Text', Georgia, serif;
+  font-size: 1rem;
+  background: var(--bg-dark);
+  border: 1px solid var(--border-gold);
+  color: var(--text-main);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+input:focus, textarea:focus, select:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(201,168,76,0.15);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-dark); }
+::-webkit-scrollbar-thumb { background: var(--border-gold); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gold-dark); }
+
+/* Ornamental divider */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--gold-dark);
+  font-size: 0.85rem;
+  margin: 1.5rem 0;
+}
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--border-gold), transparent);
+}
+
+/* Rarity colors */
+.rarity-common    { color: var(--rarity-common); }
+.rarity-uncommon  { color: var(--rarity-uncommon); }
+.rarity-rare      { color: var(--rarity-rare); }
+.rarity-epic      { color: var(--rarity-epic); }
+.rarity-legendary { color: var(--rarity-legendary); }
+.rarity-unique    { color: var(--rarity-unique); }
+
+/* Utility */
+.gold { color: var(--gold); }
+.dim  { color: var(--text-dim); }
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius);
+  padding: 1rem;
+  box-shadow: var(--shadow);
+}

@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#2e1f0a"/>
+      <stop offset="100%" stop-color="#0a0804"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="45%" r="40%">
+      <stop offset="0%" stop-color="#c9a84c" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="transparent"/>
+    </radialGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#c9a84c" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="96" fill="url(#bg)" stroke="#6b521c" stroke-width="2"/>
+  <circle cx="100" cy="100" r="96" fill="url(#glow)"/>
+  <circle cx="100" cy="100" r="90" fill="none" stroke="#3d2f10" stroke-width="1"/>
+
+  <!-- Outer decorative ring marks -->
+  <g stroke="#8a6d28" stroke-width="1.5" opacity="0.6">
+    <line x1="100" y1="6"  x2="100" y2="18"/>
+    <line x1="100" y1="182" x2="100" y2="194"/>
+    <line x1="6"  y1="100" x2="18"  y2="100"/>
+    <line x1="182" y1="100" x2="194" y2="100"/>
+    <!-- diagonal marks -->
+    <line x1="32" y1="32" x2="40" y2="40"/>
+    <line x1="160" y1="160" x2="168" y2="168"/>
+    <line x1="168" y1="32" x2="160" y2="40"/>
+    <line x1="40" y1="160" x2="32" y2="168"/>
+  </g>
+
+  <!-- Shield shape -->
+  <path d="M100 30 L155 52 L155 95 C155 135 130 158 100 170 C70 158 45 135 45 95 L45 52 Z"
+        fill="none" stroke="#c9a84c" stroke-width="2.5" stroke-linejoin="round"
+        filter="url(#shadow)"/>
+  <!-- Shield inner -->
+  <path d="M100 40 L145 59 L145 93 C145 128 123 149 100 160 C77 149 55 128 55 93 L55 59 Z"
+        fill="rgba(201,168,76,0.05)" stroke="#8a6d28" stroke-width="1" stroke-linejoin="round"/>
+
+  <!-- Sword (vertical) -->
+  <line x1="100" y1="50" x2="100" y2="148" stroke="#c9a84c" stroke-width="3" stroke-linecap="round" filter="url(#shadow)"/>
+  <!-- Crossguard -->
+  <line x1="78" y1="82" x2="122" y2="82" stroke="#c9a84c" stroke-width="3" stroke-linecap="round"/>
+  <!-- Pommel -->
+  <ellipse cx="100" cy="148" rx="6" ry="8" fill="#c9a84c" opacity="0.9"/>
+  <!-- Blade edge highlight -->
+  <line x1="102" y1="52" x2="102" y2="130" stroke="#e8cb7a" stroke-width="1" stroke-linecap="round" opacity="0.4"/>
+
+  <!-- Stars / gems -->
+  <circle cx="72" cy="62"  r="3" fill="#c9a84c" opacity="0.7"/>
+  <circle cx="128" cy="62" r="3" fill="#c9a84c" opacity="0.7"/>
+  <circle cx="65" cy="110" r="2" fill="#c9a84c" opacity="0.5"/>
+  <circle cx="135" cy="110" r="2" fill="#c9a84c" opacity="0.5"/>
+
+  <!-- Text: AIRPG -->
+  <text x="100" y="192" text-anchor="middle"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="16" font-weight="bold" letter-spacing="6"
+        fill="#c9a84c" opacity="0.9">AIRPG</text>
+</svg>

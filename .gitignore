@@ -1,0 +1,64 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Build output
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker (remova se quiser versionar)
+# docker-compose.override.yml
+
+# Coverage / tests
+coverage/
+.nyc_output/
+
+# Cache
+.npm
+.eslintcache
+.cache/
+
+# Aiaiai Uiuiui (coisas sensiveis)
+# fds vou commitar as sessions sim. vai acelerar os testes
+python/logs/
+node_modules/
+.env
+
+_chrome_profile_ecac
+screenshots
+
+venv
+/venv
+
+_chrome_profile_ecac
+_chrome_profile_receita
+_chrome_debug_profile
