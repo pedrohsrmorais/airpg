@@ -283,7 +283,7 @@ function escolherPonderado(itens) {
 }
 
 function gerarNome(genero) {
-  const primeiro = genero === 'masculino'
+  const primeiro = genero === 'male'
     ? escolher(NOMES_MASCULINOS)
     : escolher(NOMES_FEMININOS);
   return `${primeiro} ${escolher(SOBRENOMES)}`;
@@ -439,7 +439,7 @@ function gerarObjetivos(profissao, idade, regiaoId) {
 ══════════════════════════════════════════════════════════════════════════════ */
 
 function gerarNPC(regiaoId, localId, posX, posY) {
-  const genero    = Math.random() < 0.48 ? 'masculino' : 'feminino';
+  const genero    = Math.random() < 0.48 ? 'male' : 'female';
   const profissao = escolherPonderado(PROFISSOES[regiaoId] || PROFISSOES[1]);
   const idade     = gerarIdade(profissao);
   const nome      = gerarNome(genero);
