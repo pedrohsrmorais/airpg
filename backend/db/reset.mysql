@@ -96,7 +96,7 @@ CREATE TABLE locations (
   description    TEXT,
   pos_x          DECIMAL(10,4) NOT NULL DEFAULT 0,
   pos_y          DECIMAL(10,4) NOT NULL DEFAULT 0,
-  accessible     TINYINT(1)   NOT NULL DEFAULT 1,
+  is_accessible  TINYINT(1)   NOT NULL DEFAULT 1,
   properties     JSON,
   available_actions JSON,
   created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
