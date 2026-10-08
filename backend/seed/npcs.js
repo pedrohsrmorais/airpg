@@ -60,14 +60,14 @@ const SOBRENOMES = [
 ];
 
 const DIVINDADES = [
-  'Ereth',  // deusa da ordem e comércio
-  'Tharkon',// deus da guerra e honra
-  'Mira',   // deusa da cura e natureza
-  'Soleth', // deus do sol e colheita
-  'Draevon',// deus do mar e viagens
-  'Kezan',  // deus das sombras e segredos
-  'Lune',   // deusa da lua e magia
-  'Vorath', // deus do fogo e forja
+  'Ereth',   // deusa da ordem e comércio
+  'Tharkon', // deus da guerra e honra
+  'Mira',    // deusa da cura e natureza
+  'Soleth',  // deus do sol e colheita
+  'Draevon', // deus do mar e viagens
+  'Kezan',   // deus das sombras e segredos
+  'Lune',    // deusa da lua e magia
+  'Vorath',  // deus do fogo e forja
 ];
 
 const FACÇÕES = [
@@ -83,9 +83,6 @@ const FACÇÕES = [
 
 /* ══════════════════════════════════════════════════════════════════════════════
    PROFISSÕES POR REGIÃO
-   Cada profissão tem: role, weight (probabilidade relativa), e o recurso
-   que produz no simulador (produz_recurso) com quantidades min/max por ciclo
-   e o intervalo de ticks entre produções.
 ══════════════════════════════════════════════════════════════════════════════ */
 
 const PROFISSOES = {
@@ -160,31 +157,24 @@ const PROFISSOES = {
 
 /* ══════════════════════════════════════════════════════════════════════════════
    PRODUÇÃO DE RECURSOS POR PROFISSÃO
-   ticks_intervalo: a cada quantos ticks o NPC gera o recurso
-   qtd_min / qtd_max: quantidade gerada por ciclo
-   recurso: chave do item no inventário
 ══════════════════════════════════════════════════════════════════════════════ */
 
 const PRODUCAO_POR_PROFISSAO = {
-  // ── Produtores de comida ──────────────────────────────────────────
-  cacador:         { recurso: 'carne_caca',     ticks_intervalo: 2,  qtd_min: 1, qtd_max: 4  },
-  armadilheiro:    { recurso: 'carne_caca',     ticks_intervalo: 3,  qtd_min: 1, qtd_max: 3  },
-  pescador:        { recurso: 'peixe_fresco',   ticks_intervalo: 2,  qtd_min: 2, qtd_max: 6  },
-  lavrador:        { recurso: 'cereal',         ticks_intervalo: 10, qtd_min: 5, qtd_max: 15 },
-  pastor:          { recurso: 'carne_ovelha',   ticks_intervalo: 8,  qtd_min: 1, qtd_max: 3  },
-  moleiro:         { recurso: 'farinha',        ticks_intervalo: 6,  qtd_min: 3, qtd_max: 8  },
-  herborista:      { recurso: 'erva_medicinal', ticks_intervalo: 4,  qtd_min: 2, qtd_max: 5  },
-  // ── Produtores de materiais ───────────────────────────────────────
-  minerador:       { recurso: 'minerio_ferro',  ticks_intervalo: 3,  qtd_min: 2, qtd_max: 5  },
-  lenhador:        { recurso: 'madeira',        ticks_intervalo: 3,  qtd_min: 3, qtd_max: 7  },
-  ferreiro:        { recurso: 'ferro_trabalhado',ticks_intervalo: 4, qtd_min: 1, qtd_max: 3  },
-  fabricante_redes:{ recurso: 'rede_pesca',     ticks_intervalo: 8,  qtd_min: 1, qtd_max: 2  },
-  // ── Fonte de água ─────────────────────────────────────────────────
-  // Água vem de fontes públicas — gerenciado pelo mapa, não por profissão
+  cacador:          { recurso: 'carne_caca',      ticks_intervalo: 2,  qtd_min: 1, qtd_max: 4  },
+  armadilheiro:     { recurso: 'carne_caca',      ticks_intervalo: 3,  qtd_min: 1, qtd_max: 3  },
+  pescador:         { recurso: 'peixe_fresco',    ticks_intervalo: 2,  qtd_min: 2, qtd_max: 6  },
+  lavrador:         { recurso: 'cereal',          ticks_intervalo: 10, qtd_min: 5, qtd_max: 15 },
+  pastor:           { recurso: 'carne_ovelha',    ticks_intervalo: 8,  qtd_min: 1, qtd_max: 3  },
+  moleiro:          { recurso: 'farinha',         ticks_intervalo: 6,  qtd_min: 3, qtd_max: 8  },
+  herborista:       { recurso: 'erva_medicinal',  ticks_intervalo: 4,  qtd_min: 2, qtd_max: 5  },
+  minerador:        { recurso: 'minerio_ferro',   ticks_intervalo: 3,  qtd_min: 2, qtd_max: 5  },
+  lenhador:         { recurso: 'madeira',         ticks_intervalo: 3,  qtd_min: 3, qtd_max: 7  },
+  ferreiro:         { recurso: 'ferro_trabalhado',ticks_intervalo: 4,  qtd_min: 1, qtd_max: 3  },
+  fabricante_redes: { recurso: 'rede_pesca',      ticks_intervalo: 8,  qtd_min: 1, qtd_max: 2  },
 };
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   TRAÇOS DE PERSONALIDADE INATOS
+   TRAÇOS DE PERSONALIDADE
 ══════════════════════════════════════════════════════════════════════════════ */
 
 const TRACOS_INATOS = [
@@ -344,7 +334,6 @@ function gerarHabilidades(profissao) {
 
 function gerarInventario(profissao) {
   const items = INVENTARIO_INICIAL[profissao] || [];
-  // Normaliza para o formato { item_key, quantidade }
   return items.map(i => ({ item_key: i.item, quantidade: i.qtd }));
 }
 
@@ -365,7 +354,6 @@ function gerarPropriedades(profissao, ouro, regiaoId) {
 function gerarObjetivos(profissao, idade, regiaoId) {
   const objetivos = [];
 
-  // Solteiro adulto jovem — busca cônjuge
   if (idade > 20 && idade < 45 && !['crianca','anciao'].includes(profissao)) {
     if (Math.random() < 0.35) {
       objetivos.push({
@@ -377,7 +365,6 @@ function gerarObjetivos(profissao, idade, regiaoId) {
     }
   }
 
-  // Profissionais querem acumular ouro
   if (['mercador','ferreiro','estalajadeiro','artesao'].includes(profissao) && Math.random() < 0.3) {
     objetivos.push({
       tipo: 'acumular_ouro',
@@ -387,7 +374,6 @@ function gerarObjetivos(profissao, idade, regiaoId) {
     });
   }
 
-  // Mercador quer expandir negócio
   if (profissao === 'mercador' && Math.random() < 0.25) {
     objetivos.push({
       tipo: 'expandir_negocio',
@@ -397,7 +383,6 @@ function gerarObjetivos(profissao, idade, regiaoId) {
     });
   }
 
-  // Desejo de aprender algo novo
   if (Math.random() < 0.15) {
     objetivos.push({
       tipo: 'aprender_habilidade',
@@ -411,17 +396,15 @@ function gerarObjetivos(profissao, idade, regiaoId) {
     });
   }
 
-  // Pai/mãe adulto quer casar o filho
   if (idade > 40 && ['lavrador','pescador','artesao','mercador'].includes(profissao) && Math.random() < 0.2) {
     objetivos.push({
       tipo: 'casar_filho',
       status: 'bloqueado',
       prioridade: rand(4, 7),
-      dados: { npc_filho_id: null }, // resolvido após seed dos NPCs
+      dados: { npc_filho_id: null },
     });
   }
 
-  // Agricultores e pastores querem garantir comida para o inverno
   if (['lavrador','pastor','pescador'].includes(profissao) && Math.random() < 0.3) {
     objetivos.push({
       tipo: 'estocar_comida',
@@ -445,12 +428,11 @@ function gerarNPC(regiaoId, localId, posX, posY) {
   const nome      = gerarNome(genero);
   const ouro      = gerarOuro(profissao);
   const divindade = Math.random() < 0.8 ? escolher(DIVINDADES) : null;
-  const faccao    = Math.random() < 0.4 ? escolher(FACÇÕES)  : 'nenhuma';
+  const faccao    = Math.random() < 0.4 ? escolher(FACÇÕES) : 'nenhuma';
 
-  // Necessidades vitais — começam em valores aleatórios razoáveis
-  const hp    = rand(80, 100);
-  const fome  = rand(50, 100);  // 0 = faminto, 100 = satisfeito
-  const sede  = rand(50, 100);  // 0 = desidratado, 100 = hidratado
+  const hp   = rand(80, 100);
+  const fome = rand(50, 100);
+  const sede = rand(50, 100);
 
   return {
     mundo_id:    MUNDO_ID,
@@ -501,10 +483,11 @@ function construirRelacoes(npcs) {
   }
 
   // ── Casais (30% dos adultos) ─────────────────────────────────────────────
+  // FIX: genero é 'male'/'female', não 'masculino'/'feminino'
   const jaCasados = new Set();
   for (const [, regionAdultos] of Object.entries(porRegiao)) {
-    const homens   = regionAdultos.filter(n => n.genero === 'masculino');
-    const mulheres = regionAdultos.filter(n => n.genero === 'feminino');
+    const homens   = regionAdultos.filter(n => n.genero === 'male');
+    const mulheres = regionAdultos.filter(n => n.genero === 'female');
     const pares    = Math.floor(Math.min(homens.length, mulheres.length) * 0.3);
 
     for (let i = 0; i < pares; i++) {
@@ -599,7 +582,6 @@ async function main() {
   const conn = await mysql.createConnection(DB_CONFIG);
 
   try {
-    // Buscar locais por região
     const [locaisRows] = await conn.execute(
       'SELECT id, region_id, pos_x, pos_y FROM locations WHERE region_id IN (1,2,3,4,5,6)'
     );
@@ -609,13 +591,11 @@ async function main() {
       locaisPorRegiao[loc.region_id].push(loc);
     }
 
-    // Limpar NPCs existentes
     console.log('🧹 Limpando NPCs anteriores...');
     await conn.execute('DELETE FROM npc_relations WHERE 1=1');
     await conn.execute('DELETE FROM npc_objectives WHERE 1=1');
     await conn.execute('DELETE FROM npcs WHERE world_id = ?', [MUNDO_ID]);
 
-    // Gerar NPCs
     const todosNPCs = [];
     for (const { regiao_id, qtd } of DISTRIBUICAO) {
       const locais = locaisPorRegiao[regiao_id] || [];
@@ -631,7 +611,6 @@ async function main() {
 
     console.log(`\n🧑‍🤝‍🧑 Inserindo ${todosNPCs.length} NPCs...`);
 
-    // Inserir NPCs — com hp, max_hp, fome, sede
     const idsInseridos = [];
     for (const npc of todosNPCs) {
       const [resultado] = await conn.execute(
@@ -663,12 +642,10 @@ async function main() {
       idsInseridos.push(resultado.insertId);
     }
 
-    // Marcar índice real do banco em cada NPC
     for (let i = 0; i < todosNPCs.length; i++) {
       todosNPCs[i].idx = idsInseridos[i];
     }
 
-    // Inserir objetivos na tabela npc_objectives
     console.log('\n🎯 Inserindo objetivos...');
     let totalObjetivos = 0;
     for (const npc of todosNPCs) {
@@ -682,7 +659,6 @@ async function main() {
       }
     }
 
-    // Construir relações sociais
     console.log('\n💞 Construindo relações sociais...');
     const relacoes = construirRelacoes(todosNPCs);
     for (const rel of relacoes) {
@@ -694,22 +670,16 @@ async function main() {
       );
     }
 
-    // Resolver objetivos dependentes (casar_filho precisa do id real do filho)
+    // FIX: query única com a coluna correta (relation_type), sem a query velha com tipo_relacao
     console.log('\n🔗 Resolvendo objetivos dependentes...');
     const pais = todosNPCs.filter(n => n.objetivos.some(o => o.tipo === 'casar_filho'));
     for (const pai of pais) {
       const [filhosRows] = await conn.execute(
-        `SELECT npc_id FROM npc_relations
-          WHERE npc_id = ? AND tipo_relacao = 'pai' LIMIT 1`,
-        [pai.idx]
-      );
-      // Tenta a coluna correta
-      const [filhosRows2] = await conn.execute(
         `SELECT target_npc_id FROM npc_relations
           WHERE npc_id = ? AND relation_type = 'pai' LIMIT 1`,
         [pai.idx]
       );
-      const filhoId = filhosRows2[0]?.target_npc_id;
+      const filhoId = filhosRows[0]?.target_npc_id;
       if (filhoId) {
         await conn.execute(
           `UPDATE npc_objectives
@@ -724,7 +694,7 @@ async function main() {
 
     // Relatório final
     const contagem = {};
-    for (const { regiao_id, qtd } of DISTRIBUICAO) {
+    for (const { regiao_id } of DISTRIBUICAO) {
       const npcsRegiao = todosNPCs.filter(n => n.regiao_id === regiao_id);
       const profissoesCont = {};
       for (const n of npcsRegiao) {
