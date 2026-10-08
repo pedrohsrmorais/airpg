@@ -350,13 +350,16 @@ CREATE TABLE npc_relations (
   npc_id           INT UNSIGNED NOT NULL,
   target_npc_id    INT UNSIGNED NOT NULL,
   relation_type    ENUM(
-    'spouse','parent','child','sibling',
-    'friend','rival','enemy',
-    'employer','employee',
-    'acquaintance','romantic_partner',
-    'trade_partner','creditor','debtor',
-    'mentor','student'
-  ) NOT NULL DEFAULT 'acquaintance',
+    -- família
+    'conjuge','pai','filho','irmao',
+    -- sociais
+    'amigo','rival','inimigo','conhecido',
+    -- profissionais
+    'empregador','empregado','parceiro_comercial',
+    'credor','devedor','mentor','aprendiz',
+    -- romântico
+    'par_romantico'
+  ) NOT NULL DEFAULT 'conhecido',
   affinity         SMALLINT NOT NULL DEFAULT 0,  -- -100 a +100
   tags             JSON NOT NULL DEFAULT (JSON_ARRAY()),
   -- { character_id: bool } — jogadores que descobriram essa relação
@@ -385,7 +388,7 @@ CREATE TABLE npc_objectives (
   id                     INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   npc_id                 INT UNSIGNED NOT NULL,
   type                   VARCHAR(60)  NOT NULL,
-  status                 ENUM('active','completed','failed','blocked') NOT NULL DEFAULT 'active',
+  status                 ENUM('ativo','concluido','falhou','bloqueado') NOT NULL DEFAULT 'ativo',
   priority               TINYINT UNSIGNED NOT NULL DEFAULT 5,  -- 1(baixo) a 10(urgente)
   requires_npc_id        INT UNSIGNED,   -- pré-condição relacional
   payload                JSON NOT NULL DEFAULT (JSON_OBJECT()),
