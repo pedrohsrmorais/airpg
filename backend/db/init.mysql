@@ -305,30 +305,141 @@ CREATE TABLE IF NOT EXISTS npcs (
   world_id     INT UNSIGNED NOT NULL,
   location_id  INT UNSIGNED,
   region_id    INT UNSIGNED,
+
+  -- Identidade
   name         VARCHAR(80)  NOT NULL,
+  gender       ENUM('male','female','other') NOT NULL DEFAULT 'male',
+  age          TINYINT UNSIGNED NOT NULL DEFAULT 30,
   role         VARCHAR(60)  NOT NULL DEFAULT 'villager',
   description  TEXT,
-  attributes   JSON NOT NULL DEFAULT (JSON_OBJECT()),
-  goals        JSON NOT NULL DEFAULT (JSON_ARRAY()),
+  gold         INT UNSIGNED NOT NULL DEFAULT 10,
+  reputation   TINYINT UNSIGNED NOT NULL DEFAULT 50,
+
+  -- Social
+  religion     VARCHAR(60),          -- divindade cultuada
+  faction      VARCHAR(60) NOT NULL DEFAULT 'none',  -- facção de pertencimento
+
+  -- Psicologia em 3 camadas
+  -- { traits: string[], acquired: [{trait, expires_at_day}], dark: string[] }
+  personality  JSON NOT NULL DEFAULT (JSON_OBJECT()),
+
+  -- Habilidades: { skill_name: level(1-5), ... }
+  skills       JSON NOT NULL DEFAULT (JSON_OBJECT()),
+
+  -- Inventário simplificado no NPC: [{ item_key, quantity }]
+  inventory    JSON NOT NULL DEFAULT (JSON_ARRAY()),
+
+  -- Propriedades imóveis: [{ type, name, region_id, value }]
+  properties   JSON NOT NULL DEFAULT (JSON_ARRAY()),
+
+  -- Objetivos (cache rápido — tabela npc_objectives é o estado autoritativo)
+  objectives   JSON NOT NULL DEFAULT (JSON_ARRAY()),
+
+  -- Conhecimento acumulado (fatos que o NPC sabe sobre o mundo)
   knowledge    JSON NOT NULL DEFAULT (JSON_ARRAY()),
+
+  -- Estado de vida e posição
   is_alive     TINYINT(1)   NOT NULL DEFAULT 1,
   is_hostile   TINYINT(1)   NOT NULL DEFAULT 0,
   pos_x        DECIMAL(10,4) NOT NULL DEFAULT 0,
   pos_y        DECIMAL(10,4) NOT NULL DEFAULT 0,
-  loot_table   JSON,  -- {"items":["dagger","gold_coins"],"gold_min":5,"gold_max":20}
+  loot_table   JSON,  -- { gold_min, gold_max, items: [item_key] }
+
+  born_at_world_day  INT UNSIGNED,
+  died_at_world_day  INT UNSIGNED,
+
   created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
   FOREIGN KEY (world_id)    REFERENCES worlds(id)    ON DELETE CASCADE,
   FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE SET NULL,
-  FOREIGN KEY (region_id)   REFERENCES regions(id)   ON DELETE SET NULL
+  FOREIGN KEY (region_id)   REFERENCES regions(id)   ON DELETE SET NULL,
+  INDEX idx_npcs_world_region (world_id, region_id),
+  INDEX idx_npcs_alive (is_alive),
+  INDEX idx_npcs_role (role)
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS npc_relationships (
+-- Relações NPC → NPC (grafo social completo)
+CREATE TABLE IF NOT EXISTS npc_relations (
+  id               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  npc_id           INT UNSIGNED NOT NULL,
+  target_npc_id    INT UNSIGNED NOT NULL,
+  relation_type    ENUM(
+    'spouse','parent','child','sibling',
+    'friend','rival','enemy',
+    'employer','employee',
+    'acquaintance','romantic_partner',
+    'trade_partner','creditor','debtor',
+    'mentor','student'
+  ) NOT NULL DEFAULT 'acquaintance',
+  affinity         SMALLINT NOT NULL DEFAULT 0,  -- -100 a +100
+  tags             JSON NOT NULL DEFAULT (JSON_ARRAY()),
+  -- mapa { character_id: bool } — quais jogadores sabem dessa relação
+  is_known_to_player JSON NOT NULL DEFAULT (JSON_OBJECT()),
+  last_interaction_at DATETIME,
+  UNIQUE KEY uq_npc_relation (npc_id, target_npc_id, relation_type),
+  FOREIGN KEY (npc_id)        REFERENCES npcs(id) ON DELETE CASCADE,
+  FOREIGN KEY (target_npc_id) REFERENCES npcs(id) ON DELETE CASCADE,
+  INDEX idx_npc_relations_target (target_npc_id)
+) ENGINE=InnoDB;
+
+-- Relações NPC → Jogador (afeto que NPCs sentem por personagens)
+CREATE TABLE IF NOT EXISTS npc_player_relations (
   npc_id       INT UNSIGNED NOT NULL,
   character_id INT UNSIGNED NOT NULL,
-  value        SMALLINT NOT NULL DEFAULT 0,
+  affinity     SMALLINT     NOT NULL DEFAULT 0,  -- -100 a +100
+  tags         JSON NOT NULL DEFAULT (JSON_ARRAY()),
+  updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (npc_id, character_id),
-  FOREIGN KEY (npc_id)       REFERENCES npcs(id)       ON DELETE CASCADE,
-  FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE
+  FOREIGN KEY (npc_id)       REFERENCES npcs(id)        ON DELETE CASCADE,
+  FOREIGN KEY (character_id) REFERENCES characters(id)  ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Objetivos estruturados dos NPCs
+CREATE TABLE IF NOT EXISTS npc_objectives (
+  id                   INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  npc_id               INT UNSIGNED NOT NULL,
+  type                 VARCHAR(60)  NOT NULL,
+  status               ENUM('active','completed','failed','blocked') NOT NULL DEFAULT 'active',
+  priority             TINYINT UNSIGNED NOT NULL DEFAULT 5,  -- 1(baixo) a 10(urgente)
+  -- NPC pré-condição (ex: "preciso ter uma filha viva")
+  requires_npc_id      INT UNSIGNED,
+  -- Dados específicos do tipo de objetivo
+  payload              JSON NOT NULL DEFAULT (JSON_OBJECT()),
+  expires_at_world_day INT UNSIGNED,
+  completed_at_world_day INT UNSIGNED,
+  created_at           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (npc_id)           REFERENCES npcs(id) ON DELETE CASCADE,
+  FOREIGN KEY (requires_npc_id)  REFERENCES npcs(id) ON DELETE SET NULL,
+  INDEX idx_npc_objectives_npc    (npc_id),
+  INDEX idx_npc_objectives_status (status)
+) ENGINE=InnoDB;
+
+-- Log causal de eventos entre NPCs — memória do mundo
+CREATE TABLE IF NOT EXISTS npc_events (
+  id                     BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  world_id               INT UNSIGNED NOT NULL,
+  region_id              INT UNSIGNED,
+  actor_npc_id           INT UNSIGNED,       -- NULL = evento de mundo
+  target_npc_id          INT UNSIGNED,       -- NULL = evento sem alvo
+  actor_character_id     INT UNSIGNED,       -- se foi um jogador que agiu
+  event_type             VARCHAR(60) NOT NULL,
+  -- ex: marriage, death, trade, theft, argument, betrayal, assault, birth, etc.
+  payload                JSON NOT NULL DEFAULT (JSON_OBJECT()),
+  affinity_delta         SMALLINT NOT NULL DEFAULT 0,
+  world_year             SMALLINT UNSIGNED NOT NULL DEFAULT 1,
+  world_day              INT UNSIGNED NOT NULL DEFAULT 1,
+  propagated_from_event_id BIGINT UNSIGNED,  -- evento pai (cadeia causal)
+  created_at             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (world_id)            REFERENCES worlds(id)     ON DELETE CASCADE,
+  FOREIGN KEY (region_id)           REFERENCES regions(id)    ON DELETE SET NULL,
+  FOREIGN KEY (actor_npc_id)        REFERENCES npcs(id)       ON DELETE SET NULL,
+  FOREIGN KEY (target_npc_id)       REFERENCES npcs(id)       ON DELETE SET NULL,
+  FOREIGN KEY (actor_character_id)  REFERENCES characters(id) ON DELETE SET NULL,
+  FOREIGN KEY (propagated_from_event_id) REFERENCES npc_events(id) ON DELETE SET NULL,
+  INDEX idx_npc_events_world  (world_id, world_day),
+  INDEX idx_npc_events_actor  (actor_npc_id),
+  INDEX idx_npc_events_target (target_npc_id)
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------

@@ -1,0 +1,539 @@
+{
+  "_meta": {
+    "description": "Catálogo de tipos de objetivos para NPCs do simulador de mundo AIRPG",
+    "version": "1.0.0",
+    "notes": "Cada tipo define a estrutura de um objetivo. O campo 'requires' define pré-condições relacionais. O campo 'payload_schema' descreve os campos esperados em npc_objectives.payload."
+  },
+
+  "social": [
+    {
+      "type": "find_spouse",
+      "label": "Encontrar cônjuge",
+      "description": "O NPC deseja se casar. Procura ativamente parceiros compatíveis.",
+      "category": "social",
+      "priority_range": [2, 6],
+      "requires": [],
+      "payload_schema": {
+        "age_min": "int",
+        "age_max": "int",
+        "gender_preference": "string|null",
+        "faction_preference": "string|null"
+      },
+      "on_complete": ["add_relation:spouse", "remove_objective:find_spouse"],
+      "on_fail": ["add_acquired_trait:bitter_about_love"],
+      "compatible_roles": ["farmer", "merchant", "craftsman", "guard", "innkeeper", "fisherman", "hunter"]
+    },
+    {
+      "type": "marry_off_child",
+      "label": "Casar filho/filha",
+      "description": "O NPC quer garantir que seu filho ou filha se case bem.",
+      "category": "social",
+      "priority_range": [3, 7],
+      "requires": [
+        { "relation": "child", "status": "alive", "age_min": 16 }
+      ],
+      "payload_schema": {
+        "child_npc_id": "int",
+        "desired_status": "string",
+        "candidates": "array<int>"
+      },
+      "on_complete": ["add_acquired_trait:proud_parent"],
+      "on_fail": ["add_acquired_trait:worried_parent"],
+      "compatible_roles": ["farmer", "merchant", "noble", "craftsman", "innkeeper"]
+    },
+    {
+      "type": "reconcile_with",
+      "label": "Reconciliar-se com alguém",
+      "description": "O NPC tem um desentendimento com outro e quer resolver.",
+      "category": "social",
+      "priority_range": [2, 5],
+      "requires": [
+        { "relation": "any", "affinity_below": -30 }
+      ],
+      "payload_schema": {
+        "target_npc_id": "int",
+        "reason": "string",
+        "approach": "string"
+      },
+      "on_complete": ["increase_affinity:target:+40"],
+      "on_fail": ["add_relation_tag:rival"],
+      "compatible_roles": ["*"]
+    },
+    {
+      "type": "make_amends",
+      "label": "Fazer reparações",
+      "description": "O NPC causou dano a outro e busca redenção.",
+      "category": "social",
+      "priority_range": [4, 8],
+      "requires": [
+        { "relation_tag": "wronged_by_me" }
+      ],
+      "payload_schema": {
+        "target_npc_id": "int",
+        "debt_type": "string",
+        "gold_owed": "int"
+      },
+      "on_complete": ["remove_relation_tag:wronged_by_me", "add_acquired_trait:redeemed"],
+      "on_fail": ["add_dark_trait:guilt_ridden"],
+      "compatible_roles": ["*"]
+    },
+    {
+      "type": "court_romantic_interest",
+      "label": "Cortejar alguém",
+      "description": "O NPC está interessado romanticamente em outro NPC.",
+      "category": "social",
+      "priority_range": [3, 6],
+      "requires": [
+        { "relation": "acquaintance", "affinity_above": 20 }
+      ],
+      "payload_schema": {
+        "target_npc_id": "int",
+        "stage": "string",
+        "gifts_given": "int"
+      },
+      "on_complete": ["add_relation:romantic_partner"],
+      "on_fail": ["add_acquired_trait:heartbroken"],
+      "compatible_roles": ["*"]
+    },
+    {
+      "type": "reconnect_with_family",
+      "label": "Reencontrar familiar",
+      "description": "O NPC está distante de um familiar e quer reatar o vínculo.",
+      "category": "social",
+      "priority_range": [3, 6],
+      "requires": [
+        { "relation": "family", "status": "alive", "location_different": true }
+      ],
+      "payload_schema": {
+        "target_npc_id": "int",
+        "years_apart": "int"
+      },
+      "on_complete": ["increase_affinity:target:+30"],
+      "on_fail": [],
+      "compatible_roles": ["*"]
+    }
+  ],
+
+  "economic": [
+    {
+      "type": "pay_debt",
+      "label": "Pagar dívida",
+      "description": "O NPC deve ouro a outro e está comprometido a pagar.",
+      "category": "economic",
+      "priority_range": [5, 9],
+      "requires": [
+        { "relation_tag": "creditor" }
+      ],
+      "payload_schema": {
+        "creditor_npc_id": "int",
+        "amount_total": "int",
+        "amount_paid": "int",
+        "deadline_world_day": "int"
+      },
+      "on_complete": ["remove_relation_tag:creditor", "increase_affinity:creditor:+20"],
+      "on_fail": ["add_relation_tag:bad_debtor", "decrease_affinity:creditor:-30", "add_dark_trait:financially_desperate"],
+      "compatible_roles": ["*"]
+    },
+    {
+      "type": "accumulate_gold",
+      "label": "Juntar ouro",
+      "description": "O NPC tem uma meta de poupança específica.",
+      "category": "economic",
+      "priority_range": [2, 6],
+      "requires": [],
+      "payload_schema": {
+        "target_amount": "int",
+        "reason": "string",
+        "current_savings": "int"
+      },
+      "on_complete": ["add_acquired_trait:financially_secure"],
+      "on_fail": [],
+      "compatible_roles": ["merchant", "farmer", "craftsman", "miner", "fisherman", "hunter"]
+    },
+    {
+      "type": "expand_business",
+      "label": "Expandir negócio",
+      "description": "O NPC quer crescer sua operação comercial ou produtiva.",
+      "category": "economic",
+      "priority_range": [3, 7],
+      "requires": [
+        { "has_property": true }
+      ],
+      "payload_schema": {
+        "business_type": "string",
+        "expansion_goal": "string",
+        "investment_needed": "int",
+        "hired_workers": "int"
+      },
+      "on_complete": ["add_property", "add_acquired_trait:successful_businessman"],
+      "on_fail": ["decrease_gold:-200"],
+      "compatible_roles": ["merchant", "innkeeper", "craftsman", "farmer"]
+    },
+    {
+      "type": "obtain_item",
+      "label": "Obter item específico",
+      "description": "O NPC precisa de um item concreto para outra finalidade.",
+      "category": "economic",
+      "priority_range": [2, 8],
+      "requires": [],
+      "payload_schema": {
+        "item_key": "string",
+        "item_name": "string",
+        "reason": "string",
+        "max_price": "int",
+        "is_urgent": "bool"
+      },
+      "on_complete": [],
+      "on_fail": [],
+      "compatible_roles": ["*"]
+    },
+    {
+      "type": "establish_trade_route",
+      "label": "Estabelecer rota comercial",
+      "description": "O NPC quer criar uma parceria comercial com outro mercador.",
+      "category": "economic",
+      "priority_range": [4, 7],
+      "requires": [
+        { "role": "merchant" }
+      ],
+      "payload_schema": {
+        "partner_npc_id": "int",
+        "goods": "array<string>",
+        "destination_region_id": "int"
+      },
+      "on_complete": ["add_relation:trade_partner", "add_acquired_trait:connected_merchant"],
+      "on_fail": [],
+      "compatible_roles": ["merchant"]
+    },
+    {
+      "type": "buy_property",
+      "label": "Comprar propriedade",
+      "description": "O NPC quer adquirir uma casa, loja ou terra.",
+      "category": "economic",
+      "priority_range": [3, 7],
+      "requires": [],
+      "payload_schema": {
+        "property_type": "string",
+        "target_location_id": "int",
+        "budget": "int"
+      },
+      "on_complete": ["add_property"],
+      "on_fail": [],
+      "compatible_roles": ["merchant", "craftsman", "farmer", "noble", "innkeeper"]
+    }
+  ],
+
+  "personal": [
+    {
+      "type": "learn_skill",
+      "label": "Aprender habilidade",
+      "description": "O NPC quer dominar uma nova habilidade ou ofício.",
+      "category": "personal",
+      "priority_range": [1, 5],
+      "requires": [],
+      "payload_schema": {
+        "skill_name": "string",
+        "teacher_npc_id": "int|null",
+        "progress": "int",
+        "target_level": "int"
+      },
+      "on_complete": ["add_skill", "add_acquired_trait:skilled_in_{skill}"],
+      "on_fail": [],
+      "compatible_roles": ["*"]
+    },
+    {
+      "type": "improve_reputation",
+      "label": "Melhorar reputação",
+      "description": "O NPC foi difamado ou quer ser mais respeitado na comunidade.",
+      "category": "personal",
+      "priority_range": [3, 7],
+      "requires": [],
+      "payload_schema": {
+        "target_reputation": "int",
+        "community": "string",
+        "actions_taken": "array<string>"
+      },
+      "on_complete": ["add_acquired_trait:well_respected"],
+      "on_fail": [],
+      "compatible_roles": ["*"]
+    },
+    {
+      "type": "recover_from_loss",
+      "label": "Superar perda",
+      "description": "O NPC perdeu alguém próximo e está em processo de luto.",
+      "category": "personal",
+      "priority_range": [4, 8],
+      "requires": [
+        { "has_event": "npc_death", "relation": "close" }
+      ],
+      "payload_schema": {
+        "deceased_npc_id": "int",
+        "relation_type": "string",
+        "grieving_since_day": "int",
+        "support_npc_ids": "array<int>"
+      },
+      "on_complete": ["remove_acquired_trait:grieving", "add_acquired_trait:hardened_by_loss"],
+      "on_fail": ["add_dark_trait:chronic_grief", "decrease_affinity:world:-20"],
+      "compatible_roles": ["*"]
+    },
+    {
+      "type": "leave_settlement",
+      "label": "Partir para outro lugar",
+      "description": "O NPC decidiu se mudar para outra localidade.",
+      "category": "personal",
+      "priority_range": [3, 7],
+      "requires": [],
+      "payload_schema": {
+        "destination_region_id": "int",
+        "reason": "string",
+        "departure_day": "int",
+        "items_packed": "array<string>"
+      },
+      "on_complete": ["change_location"],
+      "on_fail": [],
+      "compatible_roles": ["*"]
+    },
+    {
+      "type": "find_purpose",
+      "label": "Encontrar propósito",
+      "description": "O NPC está perdido e busca uma razão para sua existência.",
+      "category": "personal",
+      "priority_range": [1, 4],
+      "requires": [
+        { "has_dark_trait": "purposeless" }
+      ],
+      "payload_schema": {
+        "trigger": "string",
+        "mentor_npc_id": "int|null"
+      },
+      "on_complete": ["remove_dark_trait:purposeless", "add_innate_trait:determined"],
+      "on_fail": [],
+      "compatible_roles": ["*"]
+    }
+  ],
+
+  "conflict": [
+    {
+      "type": "avenge_death",
+      "label": "Vingar morte",
+      "description": "O NPC perdeu alguém para violência e quer vingança.",
+      "category": "conflict",
+      "priority_range": [7, 10],
+      "requires": [
+        { "has_event": "npc_death", "relation": "family|close_friend", "cause": "murder|war|accident" }
+      ],
+      "payload_schema": {
+        "deceased_npc_id": "int",
+        "killer_npc_id": "int|null",
+        "killer_character_id": "int|null",
+        "status": "string"
+      },
+      "on_complete": ["add_acquired_trait:avenger_fulfilled", "remove_dark_trait:blood_rage"],
+      "on_fail": ["strengthen_dark_trait:blood_rage"],
+      "compatible_roles": ["*"]
+    },
+    {
+      "type": "expose_corruption",
+      "label": "Expor corrupção",
+      "description": "O NPC descobriu desonestidade e quer torná-la pública.",
+      "category": "conflict",
+      "priority_range": [5, 9],
+      "requires": [
+        { "has_knowledge": "corruption_fact" }
+      ],
+      "payload_schema": {
+        "corrupt_npc_id": "int",
+        "evidence": "array<string>",
+        "allies": "array<int>"
+      },
+      "on_complete": ["add_acquired_trait:civic_hero", "decrease_affinity:corrupt_npc:-80"],
+      "on_fail": ["add_dark_trait:silenced_by_fear"],
+      "compatible_roles": ["guard", "merchant", "priest", "noble"]
+    },
+    {
+      "type": "reclaim_property",
+      "label": "Recuperar propriedade",
+      "description": "O NPC teve algo roubado ou tomado e quer de volta.",
+      "category": "conflict",
+      "priority_range": [5, 9],
+      "requires": [
+        { "has_event": "property_stolen" }
+      ],
+      "payload_schema": {
+        "stolen_item_key": "string",
+        "thief_npc_id": "int|null",
+        "thief_character_id": "int|null",
+        "gold_value": "int"
+      },
+      "on_complete": [],
+      "on_fail": ["add_dark_trait:victimized"],
+      "compatible_roles": ["*"]
+    },
+    {
+      "type": "settle_old_dispute",
+      "label": "Resolver disputa antiga",
+      "description": "O NPC tem uma rixa de longa data que quer encerrar.",
+      "category": "conflict",
+      "priority_range": [3, 7],
+      "requires": [
+        { "relation_tag": "old_rival", "years_min": 2 }
+      ],
+      "payload_schema": {
+        "rival_npc_id": "int",
+        "dispute_origin": "string",
+        "preferred_resolution": "string"
+      },
+      "on_complete": ["remove_relation_tag:old_rival"],
+      "on_fail": ["add_relation_tag:lifelong_enemy"],
+      "compatible_roles": ["*"]
+    },
+    {
+      "type": "protect_someone",
+      "label": "Proteger alguém",
+      "description": "O NPC está ameaçado ou um ente querido está em perigo.",
+      "category": "conflict",
+      "priority_range": [8, 10],
+      "requires": [
+        { "relation": "family|close_friend", "has_threat": true }
+      ],
+      "payload_schema": {
+        "target_npc_id": "int",
+        "threat_source_npc_id": "int|null",
+        "threat_type": "string"
+      },
+      "on_complete": ["add_acquired_trait:protector", "increase_affinity:target:+25"],
+      "on_fail": ["add_dark_trait:failed_protector"],
+      "compatible_roles": ["*"]
+    }
+  ],
+
+  "spiritual": [
+    {
+      "type": "complete_pilgrimage",
+      "label": "Completar peregrinação",
+      "description": "O NPC sente chamado religioso para uma jornada sagrada.",
+      "category": "spiritual",
+      "priority_range": [3, 7],
+      "requires": [],
+      "payload_schema": {
+        "destination_region_id": "int",
+        "deity": "string",
+        "vow": "string"
+      },
+      "on_complete": ["add_acquired_trait:spiritually_fulfilled", "increase_faith:+20"],
+      "on_fail": [],
+      "compatible_roles": ["priest", "monk", "farmer", "fisherman"]
+    },
+    {
+      "type": "seek_redemption",
+      "label": "Buscar redenção",
+      "description": "O NPC carrega um pecado e busca perdão divino ou moral.",
+      "category": "spiritual",
+      "priority_range": [4, 8],
+      "requires": [
+        { "has_dark_trait": "guilt_ridden|murderer|betrayer" }
+      ],
+      "payload_schema": {
+        "sin_description": "string",
+        "penance_type": "string",
+        "confessor_npc_id": "int|null"
+      },
+      "on_complete": ["remove_dark_trait:guilt_ridden", "add_acquired_trait:redeemed"],
+      "on_fail": [],
+      "compatible_roles": ["*"]
+    },
+    {
+      "type": "convert_to_faith",
+      "label": "Converter-se a uma fé",
+      "description": "O NPC está em dúvida religiosa e considera mudar de crença.",
+      "category": "spiritual",
+      "priority_range": [2, 5],
+      "requires": [],
+      "payload_schema": {
+        "target_deity": "string",
+        "previous_deity": "string",
+        "influenced_by_npc_id": "int|null"
+      },
+      "on_complete": ["change_religion"],
+      "on_fail": [],
+      "compatible_roles": ["*"]
+    }
+  ],
+
+  "civic": [
+    {
+      "type": "become_town_leader",
+      "label": "Tornar-se líder da comunidade",
+      "description": "O NPC quer ganhar influência política ou liderança local.",
+      "category": "civic",
+      "priority_range": [5, 9],
+      "requires": [
+        { "reputation_above": 50 }
+      ],
+      "payload_schema": {
+        "target_title": "string",
+        "current_leader_npc_id": "int|null",
+        "support_npc_ids": "array<int>",
+        "opposition_npc_ids": "array<int>"
+      },
+      "on_complete": ["add_role:leader", "add_acquired_trait:ambitious_fulfilled"],
+      "on_fail": ["remove_acquired_trait:ambitious"],
+      "compatible_roles": ["merchant", "guard", "noble", "priest", "farmer"]
+    },
+    {
+      "type": "build_structure",
+      "label": "Construir edificação",
+      "description": "O NPC quer construir algo para a comunidade ou para si.",
+      "category": "civic",
+      "priority_range": [4, 8],
+      "requires": [
+        { "gold_above": 300 }
+      ],
+      "payload_schema": {
+        "structure_type": "string",
+        "location_id": "int",
+        "cost": "int",
+        "purpose": "string"
+      },
+      "on_complete": ["add_location", "add_acquired_trait:builder"],
+      "on_fail": [],
+      "compatible_roles": ["merchant", "craftsman", "noble", "farmer"]
+    },
+    {
+      "type": "form_guild",
+      "label": "Fundar guilda",
+      "description": "O NPC quer organizar outros de sua profissão em uma associação.",
+      "category": "civic",
+      "priority_range": [5, 8],
+      "requires": [
+        { "reputation_above": 40 }
+      ],
+      "payload_schema": {
+        "guild_type": "string",
+        "member_npc_ids": "array<int>",
+        "charter_written": "bool"
+      },
+      "on_complete": ["add_faction", "add_role:guild_master"],
+      "on_fail": [],
+      "compatible_roles": ["merchant", "craftsman", "fisherman", "hunter", "miner"]
+    },
+    {
+      "type": "resist_authority",
+      "label": "Resistir à autoridade",
+      "description": "O NPC discorda do poder vigente e age contra ele.",
+      "category": "civic",
+      "priority_range": [4, 9],
+      "requires": [
+        { "faction_affinity_below": -40, "faction": "guards|nobles" }
+      ],
+      "payload_schema": {
+        "authority_npc_id": "int",
+        "method": "string",
+        "allies_npc_ids": "array<int>"
+      },
+      "on_complete": ["add_acquired_trait:rebel_hero"],
+      "on_fail": ["add_dark_trait:imprisoned", "decrease_affinity:guards:-50"],
+      "compatible_roles": ["bandit", "farmer", "merchant", "craftsman"]
+    }
+  ]
+}
