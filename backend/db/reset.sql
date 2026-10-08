@@ -1,9 +1,12 @@
 -- ============================================================
--- AIRPG — Database Init
--- Executar: mysql -u root -palfaiate10 < db/init.mysql
+-- AIRPG — Reset completo do banco
+-- ⚠️  APAGA TODOS OS DADOS. Use apenas em desenvolvimento.
+-- Executar: sudo mysql < db/reset.mysql
 -- ============================================================
 
-CREATE DATABASE IF NOT EXISTS airpg CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+DROP DATABASE IF EXISTS airpg;
+
+CREATE DATABASE airpg CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE airpg;
 
 SET NAMES utf8mb4;
@@ -12,7 +15,7 @@ SET foreign_key_checks = 0;
 -- ------------------------------------------------------------
 -- USUÁRIOS
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE users (
   id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   username    VARCHAR(60)  NOT NULL UNIQUE,
   email       VARCHAR(120) NOT NULL UNIQUE,
@@ -25,13 +28,14 @@ CREATE TABLE IF NOT EXISTS users (
 -- ------------------------------------------------------------
 -- MUNDOS
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS worlds (
+CREATE TABLE worlds (
   id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   name         VARCHAR(100) NOT NULL,
   description  TEXT,
   owner_id     INT UNSIGNED NOT NULL,
   settings     JSON         NOT NULL DEFAULT (JSON_OBJECT()),
   world_day    INT UNSIGNED NOT NULL DEFAULT 1,
+  world_year   SMALLINT UNSIGNED NOT NULL DEFAULT 1,
   world_hour   TINYINT UNSIGNED NOT NULL DEFAULT 8,
   season       ENUM('spring','summer','autumn','winter') NOT NULL DEFAULT 'spring',
   is_active    TINYINT(1)   NOT NULL DEFAULT 1,
@@ -40,7 +44,7 @@ CREATE TABLE IF NOT EXISTS worlds (
   FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS world_members (
+CREATE TABLE world_members (
   world_id    INT UNSIGNED NOT NULL,
   user_id     INT UNSIGNED NOT NULL,
   role        ENUM('player','gm','observer') NOT NULL DEFAULT 'player',
@@ -53,7 +57,7 @@ CREATE TABLE IF NOT EXISTS world_members (
 -- ------------------------------------------------------------
 -- REGIÕES
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS regions (
+CREATE TABLE regions (
   id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   world_id     INT UNSIGNED NOT NULL,
   name         VARCHAR(100) NOT NULL,
@@ -70,7 +74,7 @@ CREATE TABLE IF NOT EXISTS regions (
   FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS region_connections (
+CREATE TABLE region_connections (
   id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   from_region_id INT UNSIGNED NOT NULL,
   to_region_id   INT UNSIGNED NOT NULL,
@@ -84,7 +88,7 @@ CREATE TABLE IF NOT EXISTS region_connections (
 -- ------------------------------------------------------------
 -- LOCAIS
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS locations (
+CREATE TABLE locations (
   id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   region_id      INT UNSIGNED NOT NULL,
   name           VARCHAR(100) NOT NULL,
@@ -92,7 +96,7 @@ CREATE TABLE IF NOT EXISTS locations (
   description    TEXT,
   pos_x          DECIMAL(10,4) NOT NULL DEFAULT 0,
   pos_y          DECIMAL(10,4) NOT NULL DEFAULT 0,
-  accessible     TINYINT(1)   NOT NULL DEFAULT 1,
+  is_accessible  TINYINT(1)   NOT NULL DEFAULT 1,
   properties     JSON,
   available_actions JSON,
   created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -100,55 +104,34 @@ CREATE TABLE IF NOT EXISTS locations (
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------
--- CATÁLOGO GLOBAL DE ITENS (gerenciado pelo game designer)
+-- CATÁLOGO GLOBAL DE ITENS
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS item_catalog (
+CREATE TABLE item_catalog (
   id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  item_key        VARCHAR(80)  NOT NULL UNIQUE,   -- ex: "boots_of_climbing"
+  item_key        VARCHAR(80)  NOT NULL UNIQUE,
   name            VARCHAR(100) NOT NULL,
   description     TEXT         NOT NULL,
-  lore            TEXT,                            -- texto narrativo/sabor
-
-  -- Classificação
-  type            ENUM('weapon','armor','consumable','magic','resource','tool','key','junk','misc')
-                  NOT NULL DEFAULT 'misc',
-  subtype         VARCHAR(60),                     -- "boots","ring","sword","potion",...
-  rarity          ENUM('common','uncommon','rare','epic','legendary','unique')
-                  NOT NULL DEFAULT 'common',
+  lore            TEXT,
+  type            ENUM('weapon','armor','consumable','magic','resource','tool','key','junk','misc') NOT NULL DEFAULT 'misc',
+  subtype         VARCHAR(60),
+  rarity          ENUM('common','uncommon','rare','epic','legendary','unique') NOT NULL DEFAULT 'common',
   material        VARCHAR(60),
-
-  -- Economia
-  base_value      INT UNSIGNED NOT NULL DEFAULT 0, -- valor de mercado base (ouro)
-  sell_modifier   DECIMAL(4,2) NOT NULL DEFAULT 0.50, -- vendedor compra em X do base
-  buy_modifier    DECIMAL(4,2) NOT NULL DEFAULT 2.00, -- jogador compra em X do base
+  base_value      INT UNSIGNED NOT NULL DEFAULT 0,
+  sell_modifier   DECIMAL(4,2) NOT NULL DEFAULT 0.50,
+  buy_modifier    DECIMAL(4,2) NOT NULL DEFAULT 2.00,
   is_tradeable    TINYINT(1)   NOT NULL DEFAULT 1,
-
-  -- Física / logística
-  weight          DECIMAL(6,2) NOT NULL DEFAULT 0.00, -- kg
+  weight          DECIMAL(6,2) NOT NULL DEFAULT 0.00,
   size            ENUM('tiny','small','medium','large','huge') NOT NULL DEFAULT 'small',
   stackable       TINYINT(1)   NOT NULL DEFAULT 0,
   max_stack       SMALLINT UNSIGNED NOT NULL DEFAULT 1,
-
-  -- Drop / Loot
-  drop_chance     DECIMAL(6,4) NOT NULL DEFAULT 0.0000, -- 0.0100 = 1%
-  market_chance   DECIMAL(6,4) NOT NULL DEFAULT 0.0000, -- chance de aparecer no mercado
-  -- Contextos onde pode dropar (JSON array): ["chest","corpse","pickpocket","quest"]
+  drop_chance     DECIMAL(6,4) NOT NULL DEFAULT 0.0000,
+  market_chance   DECIMAL(6,4) NOT NULL DEFAULT 0.0000,
   drop_contexts   JSON         NOT NULL DEFAULT (JSON_ARRAY()),
-
-  -- Propriedades mecânicas (JSON livre para o engine)
   properties      JSON         NOT NULL DEFAULT (JSON_OBJECT()),
-  -- ex weapon: {"damage":"1d8","attack_bonus":2}
-  -- ex magic:  {"effect":"climb_walls","uses":0,"passive":true}
-
-  -- Requisitos para usar/equipar
   requirements    JSON         NOT NULL DEFAULT (JSON_OBJECT()),
-  -- ex: {"min_level":3,"class":["rogue","ranger"]}
-
-  -- Flags
-  is_world_item   TINYINT(1)   NOT NULL DEFAULT 0, -- item "sequestrado" do mundo, não dropa em mercado
+  is_world_item   TINYINT(1)   NOT NULL DEFAULT 0,
   is_quest_item   TINYINT(1)   NOT NULL DEFAULT 0,
-  is_unique       TINYINT(1)   NOT NULL DEFAULT 0, -- só pode existir 1 no mundo
-
+  is_unique       TINYINT(1)   NOT NULL DEFAULT 0,
   created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
@@ -156,7 +139,7 @@ CREATE TABLE IF NOT EXISTS item_catalog (
 -- ------------------------------------------------------------
 -- PERSONAGENS
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS characters (
+CREATE TABLE characters (
   id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   world_id      INT UNSIGNED NOT NULL,
   owner_id      INT UNSIGNED NOT NULL,
@@ -175,7 +158,7 @@ CREATE TABLE IF NOT EXISTS characters (
 
   hp            SMALLINT NOT NULL DEFAULT 10,
   max_hp        SMALLINT NOT NULL DEFAULT 10,
-  gold          INT UNSIGNED NOT NULL DEFAULT 50,  -- começa com 50 moedas
+  gold          INT UNSIGNED NOT NULL DEFAULT 50,
 
   region_id     INT UNSIGNED,
   location_id   INT UNSIGNED,
@@ -194,6 +177,7 @@ CREATE TABLE IF NOT EXISTS characters (
   equipped_armor  INT UNSIGNED,
 
   is_alive      TINYINT(1) NOT NULL DEFAULT 1,
+  background    TEXT,
   created_at    DATETIME   NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    DATETIME   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
@@ -203,22 +187,19 @@ CREATE TABLE IF NOT EXISTS characters (
   FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
--- Inventário do personagem
-CREATE TABLE IF NOT EXISTS character_inventory (
+CREATE TABLE character_inventory (
   id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   character_id    INT UNSIGNED NOT NULL,
   item_catalog_id INT UNSIGNED NOT NULL,
   quantity        SMALLINT UNSIGNED NOT NULL DEFAULT 1,
-  -- props individuais: durabilidade, encantamentos, nome customizado
   custom_props    JSON,
-  -- origem do item
   origin          ENUM('loot','purchase','craft','quest','world_pickup','gift') NOT NULL DEFAULT 'loot',
   acquired_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (character_id)    REFERENCES characters(id)   ON DELETE CASCADE,
   FOREIGN KEY (item_catalog_id) REFERENCES item_catalog(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS character_memory (
+CREATE TABLE character_memory (
   id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   character_id INT UNSIGNED NOT NULL UNIQUE,
   summary      TEXT,
@@ -230,16 +211,18 @@ CREATE TABLE IF NOT EXISTS character_memory (
 -- ------------------------------------------------------------
 -- TRANSAÇÕES ECONÔMICAS
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS transactions (
+CREATE TABLE transactions (
   id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   world_id        INT UNSIGNED NOT NULL,
-  type            ENUM('purchase','sale','loot','trade','reward','theft') NOT NULL,
-  -- quem pagou / recebeu
-  from_character  INT UNSIGNED,   -- NULL = mercado/mundo
-  to_character    INT UNSIGNED,   -- NULL = mercado/mundo
+  type            ENUM('purchase','sale','loot','trade','reward','theft','npc_trade') NOT NULL,
+  from_character  INT UNSIGNED,
+  to_character    INT UNSIGNED,
+  from_npc_id     INT UNSIGNED,
+  to_npc_id       INT UNSIGNED,
   item_catalog_id INT UNSIGNED,
+  item_key        VARCHAR(80),
   quantity        SMALLINT UNSIGNED NOT NULL DEFAULT 1,
-  gold_amount     INT NOT NULL DEFAULT 0, -- negativo = saiu do personagem
+  gold_amount     INT NOT NULL DEFAULT 0,
   description     TEXT,
   created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (world_id)        REFERENCES worlds(id)      ON DELETE CASCADE,
@@ -249,48 +232,46 @@ CREATE TABLE IF NOT EXISTS transactions (
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------
--- MERCADOS (instâncias de loja em locations)
+-- MERCADOS
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS markets (
-  id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  location_id  INT UNSIGNED NOT NULL UNIQUE,
-  world_id     INT UNSIGNED NOT NULL,
-  name         VARCHAR(100) NOT NULL,
-  type         ENUM('general','blacksmith','magic','alchemist','black_market') NOT NULL DEFAULT 'general',
-  gold_reserve INT UNSIGNED NOT NULL DEFAULT 1000,  -- ouro que o mercador tem
-  restock_hours INT UNSIGNED NOT NULL DEFAULT 24,   -- horas para restock
+CREATE TABLE markets (
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  location_id   INT UNSIGNED NOT NULL UNIQUE,
+  world_id      INT UNSIGNED NOT NULL,
+  name          VARCHAR(100) NOT NULL,
+  type          ENUM('general','blacksmith','magic','alchemist','black_market') NOT NULL DEFAULT 'general',
+  gold_reserve  INT UNSIGNED NOT NULL DEFAULT 1000,
+  restock_hours INT UNSIGNED NOT NULL DEFAULT 24,
   last_restock  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE CASCADE,
   FOREIGN KEY (world_id)    REFERENCES worlds(id)    ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- Estoque do mercado (calculado no restock, baseado em market_chance do item)
-CREATE TABLE IF NOT EXISTS market_stock (
+CREATE TABLE market_stock (
   id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   market_id       INT UNSIGNED NOT NULL,
   item_catalog_id INT UNSIGNED NOT NULL,
   quantity        SMALLINT UNSIGNED NOT NULL DEFAULT 1,
-  price_override  INT UNSIGNED,   -- NULL = usa buy_modifier do catálogo
+  price_override  INT UNSIGNED,
   added_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (market_id)       REFERENCES markets(id)     ON DELETE CASCADE,
   FOREIGN KEY (item_catalog_id) REFERENCES item_catalog(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------
--- LOOT EVENTS (baús, cadáveres, pickpocket, etc.)
+-- LOOT EVENTS
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS loot_events (
+CREATE TABLE loot_events (
   id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   world_id        INT UNSIGNED NOT NULL,
   character_id    INT UNSIGNED NOT NULL,
   context         ENUM('chest','corpse','pickpocket','search','quest','world_pickup') NOT NULL,
-  source_name     VARCHAR(100),   -- "Baú da Câmara Secreta", "Goblin Ladrão", etc.
+  source_name     VARCHAR(100),
   region_id       INT UNSIGNED,
   location_id     INT UNSIGNED,
-  -- o que foi encontrado (array de {item_catalog_id, quantity})
   found_items     JSON NOT NULL DEFAULT (JSON_ARRAY()),
   gold_found      INT UNSIGNED NOT NULL DEFAULT 0,
-  rolls           JSON NOT NULL DEFAULT (JSON_ARRAY()),  -- histórico dos dados
+  rolls           JSON NOT NULL DEFAULT (JSON_ARRAY()),
   narration       TEXT,
   created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (world_id)     REFERENCES worlds(id)     ON DELETE CASCADE,
@@ -298,52 +279,43 @@ CREATE TABLE IF NOT EXISTS loot_events (
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------
--- NPCs
+-- NPCs — TABELA PRINCIPAL
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS npcs (
+CREATE TABLE npcs (
   id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   world_id     INT UNSIGNED NOT NULL,
   location_id  INT UNSIGNED,
   region_id    INT UNSIGNED,
 
-  -- Identidade
   name         VARCHAR(80)  NOT NULL,
   gender       ENUM('male','female','other') NOT NULL DEFAULT 'male',
   age          TINYINT UNSIGNED NOT NULL DEFAULT 30,
-  role         VARCHAR(60)  NOT NULL DEFAULT 'villager',
+  role         VARCHAR(60)  NOT NULL DEFAULT 'aldeao',
   description  TEXT,
   gold         INT UNSIGNED NOT NULL DEFAULT 10,
   reputation   TINYINT UNSIGNED NOT NULL DEFAULT 50,
 
-  -- Social
-  religion     VARCHAR(60),          -- divindade cultuada
-  faction      VARCHAR(60) NOT NULL DEFAULT 'none',  -- facção de pertencimento
+  -- Necessidades vitais
+  hp           SMALLINT UNSIGNED NOT NULL DEFAULT 100,
+  max_hp       SMALLINT UNSIGNED NOT NULL DEFAULT 100,
+  hunger       TINYINT UNSIGNED  NOT NULL DEFAULT 75,
+  thirst       TINYINT UNSIGNED  NOT NULL DEFAULT 75,
 
-  -- Psicologia em 3 camadas
-  -- { traits: string[], acquired: [{trait, expires_at_day}], dark: string[] }
+  religion     VARCHAR(60),
+  faction      VARCHAR(60) NOT NULL DEFAULT 'nenhuma',
+
   personality  JSON NOT NULL DEFAULT (JSON_OBJECT()),
-
-  -- Habilidades: { skill_name: level(1-5), ... }
   skills       JSON NOT NULL DEFAULT (JSON_OBJECT()),
-
-  -- Inventário simplificado no NPC: [{ item_key, quantity }]
   inventory    JSON NOT NULL DEFAULT (JSON_ARRAY()),
-
-  -- Propriedades imóveis: [{ type, name, region_id, value }]
   properties   JSON NOT NULL DEFAULT (JSON_ARRAY()),
-
-  -- Objetivos (cache rápido — tabela npc_objectives é o estado autoritativo)
   objectives   JSON NOT NULL DEFAULT (JSON_ARRAY()),
-
-  -- Conhecimento acumulado (fatos que o NPC sabe sobre o mundo)
   knowledge    JSON NOT NULL DEFAULT (JSON_ARRAY()),
 
-  -- Estado de vida e posição
   is_alive     TINYINT(1)   NOT NULL DEFAULT 1,
   is_hostile   TINYINT(1)   NOT NULL DEFAULT 0,
   pos_x        DECIMAL(10,4) NOT NULL DEFAULT 0,
   pos_y        DECIMAL(10,4) NOT NULL DEFAULT 0,
-  loot_table   JSON,  -- { gold_min, gold_max, items: [item_key] }
+  loot_table   JSON,
 
   born_at_world_day  INT UNSIGNED,
   died_at_world_day  INT UNSIGNED,
@@ -355,26 +327,27 @@ CREATE TABLE IF NOT EXISTS npcs (
   FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE SET NULL,
   FOREIGN KEY (region_id)   REFERENCES regions(id)   ON DELETE SET NULL,
   INDEX idx_npcs_world_region (world_id, region_id),
-  INDEX idx_npcs_alive (is_alive),
-  INDEX idx_npcs_role (role)
+  INDEX idx_npcs_alive        (is_alive),
+  INDEX idx_npcs_role         (role)
 ) ENGINE=InnoDB;
 
--- Relações NPC → NPC (grafo social completo)
-CREATE TABLE IF NOT EXISTS npc_relations (
+-- ------------------------------------------------------------
+-- GRAFO SOCIAL NPC → NPC
+-- ENUM em pt-BR para bater com seed/npcs.js (tipo_relacao)
+-- ------------------------------------------------------------
+CREATE TABLE npc_relations (
   id               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   npc_id           INT UNSIGNED NOT NULL,
   target_npc_id    INT UNSIGNED NOT NULL,
   relation_type    ENUM(
-    'spouse','parent','child','sibling',
-    'friend','rival','enemy',
-    'employer','employee',
-    'acquaintance','romantic_partner',
-    'trade_partner','creditor','debtor',
-    'mentor','student'
-  ) NOT NULL DEFAULT 'acquaintance',
-  affinity         SMALLINT NOT NULL DEFAULT 0,  -- -100 a +100
+    'conjuge','pai','filho','irmao',
+    'amigo','rival','inimigo','conhecido',
+    'empregador','empregado','parceiro_comercial',
+    'credor','devedor','mentor','aprendiz',
+    'par_romantico'
+  ) NOT NULL DEFAULT 'conhecido',
+  affinity         SMALLINT NOT NULL DEFAULT 0,
   tags             JSON NOT NULL DEFAULT (JSON_ARRAY()),
-  -- mapa { character_id: bool } — quais jogadores sabem dessa relação
   is_known_to_player JSON NOT NULL DEFAULT (JSON_OBJECT()),
   last_interaction_at DATETIME,
   UNIQUE KEY uq_npc_relation (npc_id, target_npc_id, relation_type),
@@ -383,11 +356,13 @@ CREATE TABLE IF NOT EXISTS npc_relations (
   INDEX idx_npc_relations_target (target_npc_id)
 ) ENGINE=InnoDB;
 
--- Relações NPC → Jogador (afeto que NPCs sentem por personagens)
-CREATE TABLE IF NOT EXISTS npc_player_relations (
+-- ------------------------------------------------------------
+-- AFINIDADE NPC → JOGADOR
+-- ------------------------------------------------------------
+CREATE TABLE npc_player_relations (
   npc_id       INT UNSIGNED NOT NULL,
   character_id INT UNSIGNED NOT NULL,
-  affinity     SMALLINT     NOT NULL DEFAULT 0,  -- -100 a +100
+  affinity     SMALLINT     NOT NULL DEFAULT 0,
   tags         JSON NOT NULL DEFAULT (JSON_ARRAY()),
   updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (npc_id, character_id),
@@ -395,47 +370,49 @@ CREATE TABLE IF NOT EXISTS npc_player_relations (
   FOREIGN KEY (character_id) REFERENCES characters(id)  ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- Objetivos estruturados dos NPCs
-CREATE TABLE IF NOT EXISTS npc_objectives (
-  id                   INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  npc_id               INT UNSIGNED NOT NULL,
-  type                 VARCHAR(60)  NOT NULL,
-  status               ENUM('active','completed','failed','blocked') NOT NULL DEFAULT 'active',
-  priority             TINYINT UNSIGNED NOT NULL DEFAULT 5,  -- 1(baixo) a 10(urgente)
-  -- NPC pré-condição (ex: "preciso ter uma filha viva")
-  requires_npc_id      INT UNSIGNED,
-  -- Dados específicos do tipo de objetivo
-  payload              JSON NOT NULL DEFAULT (JSON_OBJECT()),
-  expires_at_world_day INT UNSIGNED,
+-- ------------------------------------------------------------
+-- OBJETIVOS DOS NPCs
+-- ENUM em pt-BR para bater com seed/npcs.js (obj.status)
+-- ------------------------------------------------------------
+CREATE TABLE npc_objectives (
+  id                     INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  npc_id                 INT UNSIGNED NOT NULL,
+  type                   VARCHAR(60)  NOT NULL,
+  status                 ENUM('ativo','concluido','falhou','bloqueado') NOT NULL DEFAULT 'ativo',
+  priority               TINYINT UNSIGNED NOT NULL DEFAULT 5,
+  requires_npc_id        INT UNSIGNED,
+  payload                JSON NOT NULL DEFAULT (JSON_OBJECT()),
+  expires_at_world_day   INT UNSIGNED,
   completed_at_world_day INT UNSIGNED,
-  created_at           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (npc_id)           REFERENCES npcs(id) ON DELETE CASCADE,
-  FOREIGN KEY (requires_npc_id)  REFERENCES npcs(id) ON DELETE SET NULL,
+  created_at             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (npc_id)          REFERENCES npcs(id) ON DELETE CASCADE,
+  FOREIGN KEY (requires_npc_id) REFERENCES npcs(id) ON DELETE SET NULL,
   INDEX idx_npc_objectives_npc    (npc_id),
   INDEX idx_npc_objectives_status (status)
 ) ENGINE=InnoDB;
 
--- Log causal de eventos entre NPCs — memória do mundo
-CREATE TABLE IF NOT EXISTS npc_events (
-  id                     BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  world_id               INT UNSIGNED NOT NULL,
-  region_id              INT UNSIGNED,
-  actor_npc_id           INT UNSIGNED,       -- NULL = evento de mundo
-  target_npc_id          INT UNSIGNED,       -- NULL = evento sem alvo
-  actor_character_id     INT UNSIGNED,       -- se foi um jogador que agiu
-  event_type             VARCHAR(60) NOT NULL,
-  -- ex: marriage, death, trade, theft, argument, betrayal, assault, birth, etc.
-  payload                JSON NOT NULL DEFAULT (JSON_OBJECT()),
-  affinity_delta         SMALLINT NOT NULL DEFAULT 0,
-  world_year             SMALLINT UNSIGNED NOT NULL DEFAULT 1,
-  world_day              INT UNSIGNED NOT NULL DEFAULT 1,
-  propagated_from_event_id BIGINT UNSIGNED,  -- evento pai (cadeia causal)
-  created_at             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (world_id)            REFERENCES worlds(id)     ON DELETE CASCADE,
-  FOREIGN KEY (region_id)           REFERENCES regions(id)    ON DELETE SET NULL,
-  FOREIGN KEY (actor_npc_id)        REFERENCES npcs(id)       ON DELETE SET NULL,
-  FOREIGN KEY (target_npc_id)       REFERENCES npcs(id)       ON DELETE SET NULL,
-  FOREIGN KEY (actor_character_id)  REFERENCES characters(id) ON DELETE SET NULL,
+-- ------------------------------------------------------------
+-- LOG CAUSAL DE EVENTOS
+-- ------------------------------------------------------------
+CREATE TABLE npc_events (
+  id                       BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  world_id                 INT UNSIGNED NOT NULL,
+  region_id                INT UNSIGNED,
+  actor_npc_id             INT UNSIGNED,
+  target_npc_id            INT UNSIGNED,
+  actor_character_id       INT UNSIGNED,
+  event_type               VARCHAR(60) NOT NULL,
+  payload                  JSON NOT NULL DEFAULT (JSON_OBJECT()),
+  affinity_delta           SMALLINT NOT NULL DEFAULT 0,
+  world_year               SMALLINT UNSIGNED NOT NULL DEFAULT 1,
+  world_day                INT UNSIGNED NOT NULL DEFAULT 1,
+  propagated_from_event_id BIGINT UNSIGNED,
+  created_at               DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (world_id)                 REFERENCES worlds(id)     ON DELETE CASCADE,
+  FOREIGN KEY (region_id)                REFERENCES regions(id)    ON DELETE SET NULL,
+  FOREIGN KEY (actor_npc_id)             REFERENCES npcs(id)       ON DELETE SET NULL,
+  FOREIGN KEY (target_npc_id)            REFERENCES npcs(id)       ON DELETE SET NULL,
+  FOREIGN KEY (actor_character_id)       REFERENCES characters(id) ON DELETE SET NULL,
   FOREIGN KEY (propagated_from_event_id) REFERENCES npc_events(id) ON DELETE SET NULL,
   INDEX idx_npc_events_world  (world_id, world_day),
   INDEX idx_npc_events_actor  (actor_npc_id),
@@ -443,21 +420,21 @@ CREATE TABLE IF NOT EXISTS npc_events (
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------
--- QUESTS, PLOTPOINTS, EVENTOS (mantidos do MVP anterior)
+-- QUESTS & PLOTPOINTS
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS quests (
-  id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  world_id     INT UNSIGNED NOT NULL,
-  title        VARCHAR(150) NOT NULL,
-  description  TEXT,
-  objectives   JSON NOT NULL DEFAULT (JSON_ARRAY()),
-  rewards      JSON NOT NULL DEFAULT (JSON_OBJECT()),
+CREATE TABLE quests (
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  world_id      INT UNSIGNED NOT NULL,
+  title         VARCHAR(150) NOT NULL,
+  description   TEXT,
+  objectives    JSON NOT NULL DEFAULT (JSON_ARRAY()),
+  rewards       JSON NOT NULL DEFAULT (JSON_OBJECT()),
   is_repeatable TINYINT(1)  NOT NULL DEFAULT 0,
-  created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS character_quests (
+CREATE TABLE character_quests (
   character_id INT UNSIGNED NOT NULL,
   quest_id     INT UNSIGNED NOT NULL,
   status       ENUM('active','completed','failed') NOT NULL DEFAULT 'active',
@@ -469,51 +446,57 @@ CREATE TABLE IF NOT EXISTS character_quests (
   FOREIGN KEY (quest_id)     REFERENCES quests(id)     ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS plotpoints (
-  id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  world_id       INT UNSIGNED NOT NULL,
-  title          VARCHAR(150) NOT NULL,
-  truth          JSON NOT NULL DEFAULT (JSON_OBJECT()),
-  status         ENUM('active','resolved','dormant') NOT NULL DEFAULT 'active',
-  importance     ENUM('minor','major','critical') NOT NULL DEFAULT 'minor',
+CREATE TABLE plotpoints (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  world_id        INT UNSIGNED NOT NULL,
+  title           VARCHAR(150) NOT NULL,
+  truth           JSON NOT NULL DEFAULT (JSON_OBJECT()),
+  status          ENUM('active','resolved','dormant') NOT NULL DEFAULT 'active',
+  importance      ENUM('minor','major','critical') NOT NULL DEFAULT 'minor',
   required_events JSON,
-  created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS world_events (
-  id           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  world_id     INT UNSIGNED NOT NULL,
+-- ------------------------------------------------------------
+-- EVENTOS DO MUNDO
+-- ------------------------------------------------------------
+CREATE TABLE world_events (
+  id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  world_id        INT UNSIGNED NOT NULL,
   world_timestamp VARCHAR(30) NOT NULL,
-  type         VARCHAR(50)  NOT NULL,
-  actor_type   ENUM('character','npc','world') NOT NULL DEFAULT 'character',
-  actor_id     INT UNSIGNED,
-  location_id  INT UNSIGNED,
-  region_id    INT UNSIGNED,
-  data         JSON NOT NULL DEFAULT (JSON_OBJECT()),
-  created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_world_events_world  (world_id),
-  INDEX idx_world_events_actor  (actor_type, actor_id),
+  type            VARCHAR(50)  NOT NULL,
+  actor_type      ENUM('character','npc','world') NOT NULL DEFAULT 'character',
+  actor_id        INT UNSIGNED,
+  location_id     INT UNSIGNED,
+  region_id       INT UNSIGNED,
+  data            JSON NOT NULL DEFAULT (JSON_OBJECT()),
+  created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_world_events_world (world_id),
+  INDEX idx_world_events_actor (actor_type, actor_id),
   FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS interaction_sessions (
-  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  world_id      INT UNSIGNED NOT NULL,
-  type          ENUM('combat','dialogue','trade','cooperation','pvp') NOT NULL DEFAULT 'combat',
-  status        ENUM('waiting','active','resolved','timeout') NOT NULL DEFAULT 'waiting',
-  region_id     INT UNSIGNED NOT NULL,
-  current_turn  INT UNSIGNED NOT NULL DEFAULT 0,
+-- ------------------------------------------------------------
+-- INTERAÇÕES
+-- ------------------------------------------------------------
+CREATE TABLE interaction_sessions (
+  id               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  world_id         INT UNSIGNED NOT NULL,
+  type             ENUM('combat','dialogue','trade','cooperation','pvp') NOT NULL DEFAULT 'combat',
+  status           ENUM('waiting','active','resolved','timeout') NOT NULL DEFAULT 'waiting',
+  region_id        INT UNSIGNED NOT NULL,
+  current_turn     INT UNSIGNED NOT NULL DEFAULT 0,
   current_actor_id INT UNSIGNED,
-  turn_deadline DATETIME,
-  context       JSON NOT NULL DEFAULT (JSON_OBJECT()),
-  started_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  ended_at      DATETIME,
-  FOREIGN KEY (world_id)  REFERENCES worlds(id)    ON DELETE CASCADE,
-  FOREIGN KEY (region_id) REFERENCES regions(id)   ON DELETE CASCADE
+  turn_deadline    DATETIME,
+  context          JSON NOT NULL DEFAULT (JSON_OBJECT()),
+  started_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  ended_at         DATETIME,
+  FOREIGN KEY (world_id)  REFERENCES worlds(id)   ON DELETE CASCADE,
+  FOREIGN KEY (region_id) REFERENCES regions(id)  ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS interaction_participants (
+CREATE TABLE interaction_participants (
   session_id   INT UNSIGNED NOT NULL,
   character_id INT UNSIGNED NOT NULL,
   initiative   TINYINT UNSIGNED NOT NULL DEFAULT 0,
@@ -523,7 +506,7 @@ CREATE TABLE IF NOT EXISTS interaction_participants (
   FOREIGN KEY (character_id) REFERENCES characters(id)           ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS interaction_actions (
+CREATE TABLE interaction_actions (
   id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   session_id   INT UNSIGNED NOT NULL,
   character_id INT UNSIGNED NOT NULL,
@@ -538,7 +521,7 @@ CREATE TABLE IF NOT EXISTS interaction_actions (
   FOREIGN KEY (character_id) REFERENCES characters(id)           ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS world_messages (
+CREATE TABLE world_messages (
   id           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   world_id     INT UNSIGNED NOT NULL,
   character_id INT UNSIGNED,
@@ -551,7 +534,7 @@ CREATE TABLE IF NOT EXISTS world_messages (
   FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS world_state_flags (
+CREATE TABLE world_state_flags (
   id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   world_id   INT UNSIGNED NOT NULL,
   flag_key   VARCHAR(80)  NOT NULL,
@@ -566,7 +549,7 @@ SET foreign_key_checks = 1;
 -- ============================================================
 -- SEED: usuário admin
 -- ============================================================
-INSERT IGNORE INTO users (username, email, password, is_admin)
+INSERT INTO users (username, email, password, is_admin)
 VALUES (
   'admin',
   'admin@intellsn.com.br',
@@ -577,7 +560,7 @@ VALUES (
 -- ============================================================
 -- SEED: mundo inicial
 -- ============================================================
-INSERT IGNORE INTO worlds (id, name, description, owner_id, settings)
+INSERT INTO worlds (id, name, description, owner_id, settings)
 VALUES (
   1,
   'As Terras de Eldoria',
@@ -586,34 +569,4 @@ VALUES (
   '{"system":"dnd_like","difficulty":"normal","permadeath":false,"allow_pvp":true}'
 );
 
-INSERT IGNORE INTO world_members (world_id, user_id, role)
-VALUES (1, 1, 'gm');
-
--- Regiões iniciais
-INSERT IGNORE INTO regions (id, world_id, name, type, description, min_x, max_x, min_y, max_y, danger_level)
-VALUES
-  (1, 1, 'Porto de Eldoria',  'city',    'A cidade portuária principal do reino.',    0,   60,  0,  60, 1),
-  (2, 1, 'Floresta Negra',    'forest',  'Floresta densa repleta de criaturas.',      60, 160,  0,  80, 3),
-  (3, 1, 'Minas de Ferro',    'dungeon', 'Antigas minas repletas de goblins.',         0,  50, 60, 120, 4);
-
-INSERT IGNORE INTO region_connections (from_region_id, to_region_id, travel_hours, danger, bidirectional)
-VALUES
-  (1, 2, 3.0, 'medium', 1),
-  (1, 3, 5.0, 'high',   1),
-  (2, 3, 4.0, 'high',   1);
-
--- Locais iniciais
-INSERT IGNORE INTO locations (id, region_id, name, type, description, pos_x, pos_y, properties, available_actions)
-VALUES
-  (1, 1, 'Taverna do Ancião',     'tavern',      'Boa cerveja e rumores.',                    20, 30, '{}',              '["eat","drink","rest","talk"]'),
-  (2, 1, 'Ferraria do Martelo',   'blacksmith',  'O melhor ferreiro do porto.',               35, 20, '{"has_forge":true}','["buy","sell","repair","craft"]'),
-  (3, 1, 'Mercado Central',       'market',      'Comerciantes de todo o reino.',             40, 40, '{}',              '["buy","sell","trade"]'),
-  (4, 1, 'Porto Sul',             'port',        'Navios de todo o continente.',              10, 55, '{}',              '["travel","trade"]'),
-  (5, 2, 'Clareira da Bruxa',     'clearing',    'Uma estranha clareira com altar de pedra.', 90, 40, '{}',              '["investigate","talk"]'),
-  (6, 3, 'Entrada das Minas',     'dungeon_entry','Escuridão e o cheiro de enxofre.',          20, 70, '{}',              '["enter","investigate"]');
-
--- Mercados
-INSERT IGNORE INTO markets (id, location_id, world_id, name, type, gold_reserve)
-VALUES
-  (1, 3, 1, 'Mercado Central de Eldoria', 'general',    5000),
-  (2, 2, 1, 'Ferraria do Martelo',        'blacksmith', 2000);
+INSERT INTO world_members (world_id, user_id, role) VALUES (1, 1, 'gm');
